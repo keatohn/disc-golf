@@ -12,5 +12,6 @@ airflow/logs/
 airflow/dag_processor/
 airflow/scheduler/
 
-# Airflow convenience scripts
+# Local scripts
 scripts/get-password.sh
+scripts/pdga_data/
