@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: scorecards
+    description: "Staging model that flattens the top-level scorecard JSON data"
+
+  - name: scorecard_entries
+    description: "Staging model that parses the entries array to get individual player scores per hole"
+
+  - name: course_holes
+    description: "Staging model that parses the holes array to get detailed course hole information"
+
+  - name: throws
+    description: "Staging model that parses the holeThrows array to get individual throw details"

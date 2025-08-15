@@ -1,0 +1,123 @@
+// Disc Golf DBT Data Model ERD
+// This file can be directly imported into dbdiagram.io
+
+// Dimension Tables
+Table dim_course {
+  course_sk varchar [pk]
+  course_id varchar [unique]
+  course_name varchar [not null]
+  is_custom boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table dim_layout {
+  layout_sk varchar [pk]
+  layout_id varchar [unique]
+  course_sk varchar [ref: > dim_course.course_sk]
+  layout_name varchar
+  hole_count integer
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table dim_layout_hole {
+  layout_hole_sk varchar [pk]
+  layout_hole_id varchar [unique]
+  layout_sk varchar [ref: > dim_layout.layout_sk]
+  hole_number integer
+  par integer
+  distance integer
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table dim_player {
+  player_sk varchar [pk]
+  player_id varchar [unique]
+  player_name varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+// Fact Tables
+Table fct_scorecard {
+  scorecard_sk varchar [pk]
+  scorecard_id varchar [ref: > dim_course.course_id]
+  course_sk varchar [ref: > dim_course.course_sk]
+  player_sk varchar [ref: > dim_player.player_sk]
+  layout_sk varchar [ref: > dim_layout.layout_sk]
+  round_date date
+  total_score integer
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table fct_round {
+  round_sk varchar [pk]
+  scorecard_id varchar [ref: > fct_scorecard.scorecard_id]
+  course_sk varchar [ref: > dim_course.course_sk]
+  player_sk varchar [ref: > dim_player.player_sk]
+  layout_sk varchar [ref: > dim_layout.layout_sk]
+  round_date date
+  total_score integer
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table fct_round_hole {
+  round_hole_sk varchar [pk]
+  scorecard_id varchar [ref: > fct_scorecard.scorecard_id]
+  layout_hole_sk varchar [ref: > dim_layout_hole.layout_hole_sk]
+  hole_number integer
+  score integer
+  par integer
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table fct_throw {
+  throw_sk varchar [pk]
+  scorecard_id varchar [ref: > fct_scorecard.scorecard_id]
+  course_sk varchar [ref: > dim_course.course_sk]
+  layout_hole_sk varchar [ref: > dim_layout_hole.layout_hole_sk]
+  throw_number integer
+  distance integer
+  throw_type varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+// Staging Tables
+Table scorecards {
+  scorecard_id varchar
+  course_id varchar
+  player_name varchar
+  layout_name varchar
+  round_date date
+  total_score integer
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table course_holes {
+  course_id varchar
+  layout_name varchar
+  hole_number integer
+  par integer
+  distance integer
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table throws {
+  scorecard_id varchar
+  course_id varchar
+  layout_name varchar
+  hole_number integer
+  throw_number integer
+  distance integer
+  throw_type varchar
+  created_at timestamp
+  updated_at timestamp
+}

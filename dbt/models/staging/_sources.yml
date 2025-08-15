@@ -1,0 +1,7 @@
+sources:
+  - name: raw_udisc_scorecards
+    description: "Raw scorecard JSON data from UDisc"
+    database: "DISC_GOLF"
+    schema: "STAGING"
+    tables:
+      - name: raw_udisc_scorecards

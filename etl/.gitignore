@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.vscode
+.env
+.DS_Store
+NOTES.md
+sample_data/
+tests/
+
+# Airflow logs and generated files
+airflow/logs/
+airflow/dag_processor/
+airflow/scheduler/
+
+# Airflow convenience scripts
+scripts/get-password.sh

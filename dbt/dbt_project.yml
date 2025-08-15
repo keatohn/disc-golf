@@ -1,0 +1,35 @@
+name: 'disc_golf_dbt'
+version: '1.0.0'
+config-version: 2
+
+profile: 'disc_golf_dbt'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  dbt_constraints_enabled: true
+  dbt_constraints_pk_enabled: true
+  dbt_constraints_uk_enabled: true
+  dbt_constraints_fk_enabled: true
+  dbt_constraints_nn_enabled: true
+
+models:
+  disc_golf_dbt:
+    staging:
+      +materialized: table
+    dimensional:
+      +materialized: incremental
+      +incremental_strategy: merge
+
+on-run-end:
+  - "{{ dbt_constraints.create_constraints() }}"

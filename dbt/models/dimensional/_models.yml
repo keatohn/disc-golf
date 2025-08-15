@@ -1,0 +1,383 @@
+version: 2
+
+models:
+  - name: dim_course
+    description: "Dimension table for disc golf courses, including custom courses without object IDs"
+    columns:
+      - name: course_sk
+        description: "Surrogate key for the course"
+        tests:
+          - unique
+          - not_null
+      - name: course_id
+        description: "Original course ID from UDisc (may be null for custom courses)"
+        tests:
+          - unique
+      - name: course_name
+        description: "Name of the course"
+        tests:
+          - not_null
+      - name: is_custom
+        description: "Whether this is a custom course"
+      - name: created_at
+        description: "When the course was first created"
+      - name: updated_at
+        description: "When the course was last updated"
+
+  - name: dim_layout
+    description: "Dimension table for course layouts, including custom layouts without object IDs"
+    columns:
+      - name: layout_sk
+        description: "Surrogate key for the layout"
+        tests:
+          - unique
+      - name: layout_id
+        description: "Original layout ID from UDisc (may be null for custom layouts)"
+        tests:
+          - unique
+      - name: layout_name
+        description: "Name of the layout"
+        tests:
+          - not_null
+      - name: course_sk
+        description: "Foreign key to dim_course"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_course')
+              field: course_sk
+      - name: is_custom
+        description: "Whether this is a custom layout"
+      - name: created_at
+        description: "When the layout was first created"
+      - name: updated_at
+        description: "When the layout was last updated"
+
+  - name: dim_layout_hole
+    description: "Dimension table for holes within layouts, containing static hole definitions"
+    columns:
+      - name: layout_hole_sk
+        description: "Surrogate key for the layout hole"
+        tests:
+          - unique
+      - name: layout_hole_id
+        description: "Unique identifier for the layout hole"
+        tests:
+          - unique
+      - name: hole_name
+        description: "Name of the hole"
+      - name: hole_number
+        description: "Hole number on the layout"
+      - name: par
+        description: "Par for this hole"
+      - name: distance
+        description: "Distance of this hole in feet"
+      - name: dogleg_count
+        description: "Number of doglegs on this hole"
+      - name: created_at
+        description: "When the hole was first created"
+      - name: updated_at
+        description: "When the hole was last updated"
+
+  - name: dim_player
+    description: "Dimension table for disc golf players"
+    columns:
+      - name: player_sk
+        description: "Surrogate key for the player"
+        tests:
+          - unique
+      - name: player_id
+        description: "Original player ID from UDisc (may be null for custom players)"
+        tests:
+          - unique
+      - name: full_name
+        description: "Full name of the player"
+      - name: first_name
+        description: "First name of the player"
+      - name: last_name
+        description: "Last name of the player"
+      - name: display_name
+        description: "Display name of the player"
+      - name: username
+        description: "Username of the player"
+        tests:
+          - not_null
+      - name: is_udisc_user
+        description: "Whether this is a UDisc user"
+      - name: is_deleted
+        description: "Whether this player has been deleted"
+      - name: created_by_player_sk
+        description: "Foreign key to dim_player (who created this player)"
+        tests:
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: created_at
+        description: "When the player was first created"
+      - name: updated_at
+        description: "When the player was last updated"
+
+  - name: fct_scorecard
+    description: "Fact table for scorecards representing group outings on a layout"
+    columns:
+      - name: scorecard_sk
+        description: "Surrogate key for the scorecard"
+        tests:
+          - unique
+      - name: scorecard_id
+        description: "Original scorecard ID"
+        tests:
+          - not_null
+      - name: course_id
+        description: "Course ID for this scorecard"
+        tests:
+          - relationships:
+              to: ref('dim_course')
+              field: course_id
+      - name: layout_id
+        description: "Layout ID for this scorecard"
+        tests:
+          - relationships:
+              to: ref('dim_layout')
+              field: layout_id
+      - name: start_date
+        description: "When the scorecard outing started"
+      - name: end_date
+        description: "When the scorecard outing ended"
+      - name: course_name
+        description: "Name of the course"
+      - name: layout_name
+        description: "Name of the layout"
+      - name: total_players
+        description: "Number of players in the group"
+      - name: total_group_strokes
+        description: "Total strokes across all players and holes"
+      - name: avg_group_score_per_hole
+        description: "Average group score per hole"
+      - name: best_group_score_per_hole
+        description: "Best group score on any hole"
+      - name: worst_group_score_per_hole
+        description: "Worst group score on any hole"
+      - name: change_version
+        description: "Version of the scorecard data"
+      - name: updated_at
+        description: "When the scorecard was last updated"
+
+  - name: fct_round
+    description: "Fact table for individual player rounds within a scorecard"
+    columns:
+      - name: round_sk
+        description: "Surrogate key for the round"
+        tests:
+          - unique
+      - name: scorecard_id
+        description: "Original scorecard ID"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_course')
+              field: scorecard_id
+      - name: entry_id
+        description: "Unique identifier for the player's entry in this round"
+        tests:
+          - not_null
+      - name: player_id
+        description: "Original player ID"
+      - name: course_sk
+        description: "Foreign key to dim_course"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_course')
+              field: course_sk
+      - name: layout_sk
+        description: "Foreign key to dim_layout"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_layout')
+              field: layout_sk
+      - name: player_sk
+        description: "Foreign key to dim_player"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: round_start_date
+        description: "When the round started"
+      - name: round_end_date
+        description: "When the round ended"
+      - name: holes_updated_at
+        description: "When the holes were last updated"
+      - name: change_version
+        description: "Version of the round data"
+      - name: updated_at
+        description: "When the round was last updated"
+      - name: holes_played
+        description: "Number of holes played in this round"
+      - name: total_score
+        description: "Total strokes for the round"
+        tests:
+          - not_null
+      - name: avg_hole_score
+        description: "Average score per hole"
+      - name: bogeys_or_worse
+        description: "Number of bogeys or worse holes"
+      - name: pars
+        description: "Number of par holes"
+      - name: birdies_or_better
+        description: "Number of birdies or better holes"
+      - name: total_par
+        description: "Total par for the round"
+      - name: score_to_par
+        description: "Total score relative to par"
+
+  - name: fct_round_hole
+    description: "Fact table for hole-by-hole performance within individual rounds"
+    columns:
+      - name: round_hole_sk
+        description: "Surrogate key for the round hole performance record"
+        tests:
+          - unique
+      - name: scorecard_id
+        description: "Original scorecard ID"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_course')
+              field: scorecard_id
+      - name: entry_id
+        description: "Foreign key to fct_round"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_round')
+              field: entry_id
+      - name: player_sk
+        description: "Foreign key to dim_player"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: hole_number
+        description: "Hole number on the course"
+        tests:
+          - not_null
+      - name: hole_strokes
+        description: "Number of strokes taken on this hole"
+        tests:
+          - not_null
+      - name: change_version
+        description: "Version of the hole data"
+      - name: holes_updated_at
+        description: "When the holes were last updated"
+      - name: last_updated_at
+        description: "When this record was last updated"
+      - name: hole_par
+        description: "Par for this hole"
+      - name: hole_distance
+        description: "Distance of this hole in feet"
+      - name: tee_latitude
+        description: "Tee latitude coordinate"
+      - name: tee_longitude
+        description: "Tee longitude coordinate"
+      - name: basket_latitude
+        description: "Basket latitude coordinate"
+      - name: basket_longitude
+        description: "Basket longitude coordinate"
+      - name: doglegs
+        description: "Dogleg information for this hole"
+      - name: avg_strokes_for_hole
+        description: "Average strokes for this hole across all rounds"
+      - name: best_score_for_hole
+        description: "Best score recorded for this hole"
+      - name: worst_score_for_hole
+        description: "Worst score recorded for this hole"
+      - name: total_attempts_for_hole
+        description: "Total number of attempts on this hole"
+      - name: strokes_vs_course_avg
+        description: "Strokes relative to course average for this hole"
+      - name: hole_score
+        description: "Score relative to par for this hole"
+
+  - name: fct_throw
+    description: "Fact table for individual throws within holes"
+    columns:
+      - name: throw_sk
+        description: "Surrogate key for the throw record"
+        tests:
+          - unique
+      - name: scorecard_id
+        description: "Original scorecard ID"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_course')
+              field: scorecard_id
+      - name: course_sk
+        description: "Foreign key to dim_course"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_course')
+              field: course_sk
+      - name: entry_id
+        description: "Foreign key to fct_round"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_round')
+              field: entry_id
+      - name: player_sk
+        description: "Foreign key to dim_player"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: hole_number
+        description: "Hole number"
+        tests:
+          - not_null
+      - name: hole_strokes
+        description: "Number of strokes on this hole"
+      - name: throw_number
+        description: "Throw number within the hole"
+        tests:
+          - not_null
+      - name: landing_zone
+        description: "Where the disc landed (basket, circle1, circle2, etc.)"
+      - name: throw_distance
+        description: "Distance of this throw in feet"
+      - name: cumulative_hole_distance
+        description: "Cumulative distance covered on this hole"
+      - name: is_final_throw
+        description: "Whether this is the final throw on the hole"
+      - name: throw_quality
+        description: "Quality rating of this throw"
+      - name: hole_par
+        description: "Par for this hole"
+      - name: hole_distance
+        description: "Total distance of this hole"
+      - name: tee_latitude
+        description: "Tee latitude coordinate"
+      - name: tee_longitude
+        description: "Tee longitude coordinate"
+      - name: basket_latitude
+        description: "Basket latitude coordinate"
+      - name: basket_longitude
+        description: "Basket longitude coordinate"
+      - name: avg_throw_distance_for_hole
+        description: "Average throw distance for this hole"
+      - name: shortest_throw_for_hole
+        description: "Shortest throw distance for this hole"
+      - name: longest_throw_for_hole
+        description: "Longest throw distance for this hole"
+      - name: distance_vs_course_avg
+        description: "Distance relative to course average"
+      - name: remaining_distance_to_basket
+        description: "Remaining distance to the basket"
+      - name: last_updated_at
+        description: "When this record was last updated"
