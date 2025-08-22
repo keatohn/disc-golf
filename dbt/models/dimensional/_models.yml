@@ -117,6 +117,27 @@ models:
       - name: updated_at
         description: "When the player was last updated"
 
+  - name: dim_team
+    description: "Dimension table for disc golf teams (doubles, triples, etc.)"
+    columns:
+      - name: team_sk
+        description: "Surrogate key for the team"
+        tests:
+          - unique
+          - not_null
+      - name: team_id
+        description: "Unique identifier for the team (concatenated player IDs)"
+        tests:
+          - unique
+      - name: team_name
+        description: "Display name for the team"
+      - name: team_type
+        description: "Type of team (Doubles, Triples, Team)"
+      - name: created_at
+        description: "When the team was first created"
+      - name: updated_at
+        description: "When the team was last updated"
+
   - name: fct_scorecard
     description: "Fact table for scorecards representing group outings on a layout"
     columns:
@@ -124,42 +145,66 @@ models:
         description: "Surrogate key for the scorecard"
         tests:
           - unique
+          - not_null
       - name: scorecard_id
         description: "Original scorecard ID"
         tests:
           - not_null
-      - name: course_id
-        description: "Course ID for this scorecard"
+      - name: layout_sk
+        description: "Foreign key to dim_layout"
         tests:
-          - relationships:
-              to: ref('dim_course')
-              field: course_id
-      - name: layout_id
-        description: "Layout ID for this scorecard"
-        tests:
+          - not_null
           - relationships:
               to: ref('dim_layout')
-              field: layout_id
+              field: layout_sk
       - name: start_date
         description: "When the scorecard outing started"
       - name: end_date
         description: "When the scorecard outing ended"
-      - name: course_name
-        description: "Name of the course"
-      - name: layout_name
-        description: "Name of the layout"
-      - name: total_players
-        description: "Number of players in the group"
-      - name: total_group_strokes
-        description: "Total strokes across all players and holes"
-      - name: avg_group_score_per_hole
-        description: "Average group score per hole"
-      - name: best_group_score_per_hole
-        description: "Best group score on any hole"
-      - name: worst_group_score_per_hole
-        description: "Worst group score on any hole"
-      - name: change_version
+      - name: duration_minutes
+        description: "Duration of the scorecard outing in minutes"
+      - name: starting_hole
+        description: "Starting hole number for the outing"
+      - name: scorecard_name
+        description: "Custom name for the scorecard"
+      - name: miles_travelled
+        description: "Total miles travelled during the outing"
+      - name: step_count
+        description: "Total step count during the outing"
+      - name: floors_ascended
+        description: "Number of floors ascended"
+      - name: floors_descended
+        description: "Number of floors descended"
+      - name: temperature
+        description: "Temperature during the outing in Fahrenheit"
+      - name: wind_direction
+        description: "Wind direction (cardinal direction)"
+      - name: wind_speed
+        description: "Wind speed in miles per hour"
+      - name: humidity_percent
+        description: "Humidity percentage during the outing"
+      - name: cloud_cover_percent
+        description: "Cloud cover percentage during the outing"
+      - name: notes
+        description: "Additional notes about the outing"
+      - name: uses_valid_smart_layout
+        description: "Whether the layout uses valid smart layout"
+      - name: is_finished
+        description: "Whether the scorecard is finished"
+      - name: is_public
+        description: "Whether the scorecard is public"
+      - name: is_deleted
+        description: "Whether the scorecard is deleted"
+      - name: version
         description: "Version of the scorecard data"
+      - name: created_by_player_sk
+        description: "Foreign key to dim_player (who created the scorecard)"
+        tests:
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: created_at
+        description: "When the scorecard was created"
       - name: updated_at
         description: "When the scorecard was last updated"
 
@@ -170,68 +215,48 @@ models:
         description: "Surrogate key for the round"
         tests:
           - unique
-      - name: scorecard_id
-        description: "Original scorecard ID"
+          - not_null
+      - name: round_id
+        description: "Unique identifier for the round (entry_id)"
+        tests:
+          - not_null
+      - name: scorecard_sk
+        description: "Foreign key to fct_scorecard"
         tests:
           - not_null
           - relationships:
-              to: ref('dim_course')
-              field: scorecard_id
-      - name: entry_id
-        description: "Unique identifier for the player's entry in this round"
-        tests:
-          - not_null
-      - name: player_id
-        description: "Original player ID"
-      - name: course_sk
-        description: "Foreign key to dim_course"
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_course')
-              field: course_sk
-      - name: layout_sk
-        description: "Foreign key to dim_layout"
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_layout')
-              field: layout_sk
+              to: ref('fct_scorecard')
+              field: scorecard_sk
       - name: player_sk
         description: "Foreign key to dim_player"
         tests:
-          - not_null
           - relationships:
               to: ref('dim_player')
               field: player_sk
-      - name: round_start_date
-        description: "When the round started"
-      - name: round_end_date
-        description: "When the round ended"
-      - name: holes_updated_at
-        description: "When the holes were last updated"
-      - name: change_version
-        description: "Version of the round data"
+      - name: team_sk
+        description: "Foreign key to dim_team"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: round_type
+        description: "Type of round (Singles, Doubles, Triples, Team)"
+      - name: round_starting_score
+        description: "Starting score for the round"
+      - name: round_strokes
+        description: "Total strokes for the round"
+      - name: round_par
+        description: "Total par for the round"
+      - name: round_score
+        description: "Score relative to par"
+      - name: round_score_display
+        description: "Formatted score display (E, +1, -2, etc.)"
+      - name: round_rating_udisc
+        description: "UDisc rating for the round"
+      - name: created_at
+        description: "When the round was created"
       - name: updated_at
         description: "When the round was last updated"
-      - name: holes_played
-        description: "Number of holes played in this round"
-      - name: total_score
-        description: "Total strokes for the round"
-        tests:
-          - not_null
-      - name: avg_hole_score
-        description: "Average score per hole"
-      - name: bogeys_or_worse
-        description: "Number of bogeys or worse holes"
-      - name: pars
-        description: "Number of par holes"
-      - name: birdies_or_better
-        description: "Number of birdies or better holes"
-      - name: total_par
-        description: "Total par for the round"
-      - name: score_to_par
-        description: "Total score relative to par"
 
   - name: fct_round_hole
     description: "Fact table for hole-by-hole performance within individual rounds"
@@ -244,16 +269,13 @@ models:
         description: "Original scorecard ID"
         tests:
           - not_null
-          - relationships:
-              to: ref('dim_course')
-              field: scorecard_id
       - name: entry_id
         description: "Foreign key to fct_round"
         tests:
           - not_null
           - relationships:
               to: ref('fct_round')
-              field: entry_id
+              field: round_id
       - name: player_sk
         description: "Foreign key to dim_player"
         tests:
@@ -302,6 +324,85 @@ models:
       - name: hole_score
         description: "Score relative to par for this hole"
 
+  - name: dim_target
+    description: "Dimension table for disc golf targets (baskets, etc.)"
+    columns:
+      - name: target_sk
+        description: "Surrogate key for the target"
+        tests:
+          - unique
+          - not_null
+      - name: target_id
+        description: "Original target ID from UDisc"
+        tests:
+          - unique
+      - name: target_type
+        description: "Type of target (basket, etc.)"
+      - name: target_name
+        description: "Name or description of the target"
+      - name: target_description
+        description: "Additional description of the target"
+      - name: created_at
+        description: "When the target was first created"
+      - name: updated_at
+        description: "When the target was last updated"
+
+  - name: dim_tee
+    description: "Dimension table for disc golf tees"
+    columns:
+      - name: tee_sk
+        description: "Surrogate key for the tee"
+        tests:
+          - unique
+          - not_null
+      - name: tee_id
+        description: "Original tee ID from UDisc"
+        tests:
+          - unique
+      - name: tee_type
+        description: "Type of tee (pro, amateur, etc.)"
+      - name: tee_name
+        description: "Name or description of the tee"
+      - name: tee_description
+        description: "Additional description of the tee"
+      - name: created_at
+        description: "When the tee was first created"
+      - name: updated_at
+        description: "When the tee was last updated"
+
+  - name: bridge_player_team
+    description: "Bridge table linking players to teams for team-based events"
+    columns:
+      - name: bridge_sk
+        description: "Surrogate key for the player-team relationship"
+        tests:
+          - unique
+          - not_null
+      - name: player_sk
+        description: "Foreign key to dim_player"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: team_sk
+        description: "Foreign key to dim_team"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: is_active
+        description: "Whether this player-team relationship is currently active"
+      - name: start_date
+        description: "When this player joined the team"
+      - name: end_date
+        description: "When this player left the team (if applicable)"
+      - name: created_at
+        description: "When this relationship was created"
+      - name: updated_at
+        description: "When this relationship was last updated"
+
   - name: fct_throw
     description: "Fact table for individual throws within holes"
     columns:
@@ -313,9 +414,6 @@ models:
         description: "Original scorecard ID"
         tests:
           - not_null
-          - relationships:
-              to: ref('dim_course')
-              field: scorecard_id
       - name: course_sk
         description: "Foreign key to dim_course"
         tests:
@@ -329,7 +427,7 @@ models:
           - not_null
           - relationships:
               to: ref('fct_round')
-              field: entry_id
+              field: round_id
       - name: player_sk
         description: "Foreign key to dim_player"
         tests:

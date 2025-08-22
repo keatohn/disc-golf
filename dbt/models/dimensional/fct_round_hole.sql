@@ -18,7 +18,7 @@ with round_holes as (
             when hole_score = 0 then 'E'
             when hole_score > 0 then '+' || to_varchar(hole_score)
             else to_varchar(hole_score)
-        end as hole_score_str,
+        end as hole_score_display,
         case
             when hole_strokes = 1 then 'Ace'
             when hole_score = -4 then 'Condor'
@@ -62,7 +62,7 @@ select
     rh.hole_strokes,
     rh.hole_par,
     rh.hole_score,
-    rh.hole_score_str,
+    rh.hole_score_display,
     rh.hole_result,
     case 
         when hc.hole_count = 0 then null

@@ -11,7 +11,7 @@ with scorecards as (
         convert_timezone('UTC', 'America/New_York', sc.end_date) as end_date,
         datediff(minute, sc.start_date, sc.end_date) as duration_minutes,
         sc.starting_hole_index + 1 as starting_hole,
-        sc.custom_name,
+        sc.custom_name as scorecard_name,
         nullifzero(
             round(
                 utils.meters_to_miles(sc.total_distance)
@@ -58,7 +58,7 @@ select
     sc.end_date,
     sc.duration_minutes,
     sc.starting_hole,
-    sc.custom_name,
+    sc.scorecard_name,
     sc.miles_travelled,
     sc.step_count,
     sc.floors_ascended,

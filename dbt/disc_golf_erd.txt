@@ -2,6 +2,7 @@ Disc Golf DBT Data Model ERD
 ================================
 
 This file can be copied to dbdiagram.io or other ERD tools to generate a visual diagram.
+Updated to reflect current model structure.
 
 DIMENSION TABLES:
 ================
@@ -19,19 +20,20 @@ Table dim_layout {
   layout_sk varchar [pk]
   layout_id varchar [unique]
   course_sk varchar [ref: > dim_course.course_sk]
-  layout_name varchar
-  hole_count integer
+  layout_name varchar [not null]
+  is_custom boolean
   created_at timestamp
   updated_at timestamp
 }
 
-Table dim_layout_hole {
-  layout_hole_sk varchar [pk]
-  layout_hole_id varchar [unique]
-  layout_sk varchar [ref: > dim_layout.layout_sk]
+Table dim_hole {
+  hole_sk varchar [pk]
+  hole_id varchar [unique]
+  hole_name varchar
   hole_number integer
   par integer
   distance integer
+  dogleg_count integer
   created_at timestamp
   updated_at timestamp
 }
@@ -39,7 +41,58 @@ Table dim_layout_hole {
 Table dim_player {
   player_sk varchar [pk]
   player_id varchar [unique]
-  player_name varchar
+  full_name varchar
+  first_name varchar
+  last_name varchar
+  display_name varchar
+  username varchar [not null]
+  is_udisc_user boolean
+  is_deleted boolean
+  created_by_player_sk varchar [ref: > dim_player.player_sk]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table dim_team {
+  team_sk varchar [pk]
+  team_id varchar [unique]
+  team_name varchar [not null]
+  team_description varchar
+  is_active boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table dim_target {
+  target_sk varchar [pk]
+  target_id varchar [unique]
+  target_type varchar
+  target_name varchar
+  target_description varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table dim_tee {
+  tee_sk varchar [pk]
+  tee_id varchar [unique]
+  tee_type varchar
+  tee_name varchar
+  tee_description varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+BRIDGE TABLES:
+==============
+
+Table bridge_player_team {
+  bridge_sk varchar [pk]
+  player_sk varchar [ref: > dim_player.player_sk]
+  team_sk varchar [ref: > dim_team.team_sk]
+  is_active boolean
+  start_date date
+  end_date date
   created_at timestamp
   updated_at timestamp
 }
@@ -49,83 +102,175 @@ FACT TABLES:
 
 Table fct_scorecard {
   scorecard_sk varchar [pk]
-  scorecard_id varchar [ref: > dim_course.course_id]
-  course_sk varchar [ref: > dim_course.course_sk]
-  player_sk varchar [ref: > dim_player.player_sk]
-  layout_sk varchar [ref: > dim_layout.layout_sk]
-  round_date date
-  total_score integer
-  created_at timestamp
+  scorecard_id varchar [not null]
+  course_id varchar [ref: > dim_course.course_id]
+  layout_id varchar [ref: > dim_layout.layout_id]
+  start_date timestamp
+  end_date timestamp
+  course_name varchar
+  layout_name varchar
+  total_players integer
+  total_group_strokes integer
+  avg_group_score_per_hole decimal
+  best_group_score_per_hole integer
+  worst_group_score_per_hole integer
+  change_version integer
   updated_at timestamp
 }
 
 Table fct_round {
   round_sk varchar [pk]
-  scorecard_id varchar [ref: > fct_scorecard.scorecard_id]
+  scorecard_id varchar [not null]
+  entry_id varchar [not null]
+  player_id varchar
   course_sk varchar [ref: > dim_course.course_sk]
-  player_sk varchar [ref: > dim_player.player_sk]
   layout_sk varchar [ref: > dim_layout.layout_sk]
-  round_date date
-  total_score integer
-  created_at timestamp
+  player_sk varchar [ref: > dim_player.player_sk]
+  round_start_date timestamp
+  round_end_date timestamp
+  holes_updated_at timestamp
+  change_version integer
   updated_at timestamp
+  holes_played integer
+  total_score integer [not null]
+  avg_hole_score decimal
+  bogeys_or_worse integer
+  pars integer
+  birdies_or_better integer
+  total_par integer
+  score_to_par integer
 }
 
 Table fct_round_hole {
   round_hole_sk varchar [pk]
-  scorecard_id varchar [ref: > fct_scorecard.scorecard_id]
-  layout_hole_sk varchar [ref: > dim_layout_hole.layout_hole_sk]
-  hole_number integer
-  score integer
-  par integer
-  created_at timestamp
-  updated_at timestamp
+  scorecard_id varchar [not null]
+  entry_id varchar [ref: > fct_round.entry_id]
+  player_sk varchar [ref: > dim_player.player_sk]
+  hole_number integer [not null]
+  hole_strokes integer [not null]
+  change_version integer
+  holes_updated_at timestamp
+  last_updated_at timestamp
+  hole_par integer
+  hole_distance integer
+  tee_latitude decimal
+  tee_longitude decimal
+  basket_latitude decimal
+  basket_longitude decimal
+  doglegs varchar
+  avg_strokes_for_hole decimal
+  best_score_for_hole integer
+  worst_score_for_hole integer
+  total_attempts_for_hole integer
+  strokes_vs_course_avg integer
+  hole_score integer
 }
 
 Table fct_throw {
   throw_sk varchar [pk]
-  scorecard_id varchar [ref: > fct_scorecard.scorecard_id]
+  scorecard_id varchar [not null]
   course_sk varchar [ref: > dim_course.course_sk]
-  layout_hole_sk varchar [ref: > dim_layout_hole.layout_hole_sk]
-  throw_number integer
-  distance integer
-  throw_type varchar
-  created_at timestamp
-  updated_at timestamp
+  entry_id varchar [ref: > fct_round.entry_id]
+  player_sk varchar [ref: > dim_player.player_sk]
+  hole_number integer [not null]
+  hole_strokes integer
+  throw_number integer [not null]
+  landing_zone varchar
+  throw_distance integer
+  cumulative_hole_distance integer
+  is_final_throw boolean
+  throw_quality varchar
+  hole_par integer
+  hole_distance integer
+  tee_latitude decimal
+  tee_longitude decimal
+  basket_latitude decimal
+  basket_longitude decimal
+  avg_throw_distance_for_hole decimal
+  shortest_throw_for_hole integer
+  longest_throw_for_hole integer
+  distance_vs_course_avg integer
+  remaining_distance_to_basket integer
+  last_updated_at timestamp
 }
 
 STAGING TABLES:
 ==============
 
 Table scorecards {
-  scorecard_id varchar
+  scorecard_id varchar [pk]
   course_id varchar
+  layout_id varchar
+  start_date timestamp
+  end_date timestamp
+  total_players integer
+  change_version integer
+  updated_at timestamp
+}
+
+Table scorecard_entries {
+  scorecard_id varchar [ref: > scorecards.scorecard_id]
+  entry_id varchar [pk]
+  player_id varchar
   player_name varchar
-  layout_name varchar
-  round_date date
   total_score integer
-  created_at timestamp
+  holes_played integer
+  change_version integer
   updated_at timestamp
 }
 
 Table course_holes {
-  course_id varchar
-  layout_name varchar
+  scorecard_id varchar [ref: > scorecards.scorecard_id]
   hole_number integer
   par integer
   distance integer
-  created_at timestamp
+  dogleg_count integer
+  tee_latitude decimal
+  tee_longitude decimal
+  basket_latitude decimal
+  basket_longitude decimal
+  change_version integer
   updated_at timestamp
 }
 
 Table throws {
-  scorecard_id varchar
-  course_id varchar
-  layout_name varchar
+  scorecard_id varchar [ref: > scorecards.scorecard_id]
+  entry_id varchar [ref: > scorecard_entries.entry_id]
   hole_number integer
   throw_number integer
-  distance integer
-  throw_type varchar
+  landing_zone varchar
+  throw_distance integer
+  cumulative_hole_distance integer
+  is_final_throw boolean
+  throw_quality varchar
+  change_version integer
+  updated_at timestamp
+}
+
+Table canonical_hole_ids {
+  hole_sk varchar [pk]
+  canonical_hole_id varchar [unique]
+  course_sk varchar [ref: > dim_course.course_sk]
+  layout_sk varchar [ref: > dim_layout.layout_sk]
+  hole_number integer [not null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table canonical_target_ids {
+  target_sk varchar [pk]
+  canonical_target_id varchar [unique]
+  target_type varchar
+  target_name varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table canonical_tee_ids {
+  tee_sk varchar [pk]
+  canonical_tee_id varchar [unique]
+  tee_type varchar
+  tee_name varchar
   created_at timestamp
   updated_at timestamp
 }
@@ -133,14 +278,25 @@ Table throws {
 RELATIONSHIPS:
 =============
 - dim_course (1) -> dim_layout (many) via course_sk
-- dim_layout (1) -> dim_layout_hole (many) via layout_sk
-- dim_course (1) -> fct_scorecard (many) via course_sk
-- dim_player (1) -> fct_scorecard (many) via player_sk
-- dim_layout (1) -> fct_scorecard (many) via layout_sk
-- fct_scorecard (1) -> fct_round (many) via scorecard_id
-- fct_scorecard (1) -> fct_round_hole (many) via scorecard_id
-- fct_scorecard (1) -> fct_throw (many) via scorecard_id
-- dim_layout_hole (1) -> fct_round_hole (many) via layout_hole_sk
+- dim_layout (1) -> dim_hole (many) via layout_sk
+- dim_course (1) -> fct_scorecard (many) via course_id
+- dim_layout (1) -> fct_scorecard (many) via layout_id
+- dim_player (1) -> fct_round (many) via player_sk
+- dim_course (1) -> fct_round (many) via course_sk
+- dim_layout (1) -> fct_round (many) via layout_sk
+- fct_round (1) -> fct_round_hole (many) via entry_id
+- fct_round (1) -> fct_throw (many) via entry_id
+- dim_player (1) -> fct_round_hole (many) via player_sk
+- dim_player (1) -> fct_throw (many) via player_sk
+- dim_course (1) -> fct_throw (many) via course_sk
+- scorecards (1) -> scorecard_entries (many) via scorecard_id
+- scorecards (1) -> course_holes (many) via scorecard_id
+- scorecards (1) -> throws (many) via scorecard_id
+- scorecard_entries (1) -> throws (many) via entry_id
+- dim_course (1) -> canonical_hole_ids (many) via course_sk
+- dim_layout (1) -> canonical_hole_ids (many) via layout_sk
+- dim_player (1) -> bridge_player_team (many) via player_sk
+- dim_team (1) -> bridge_player_team (many) via team_sk
 
 USAGE INSTRUCTIONS:
 ==================
@@ -148,3 +304,4 @@ USAGE INSTRUCTIONS:
 2. Or use with Lucidchart/Draw.io
 3. This shows logical relationships without FK constraints
 4. Perfect for Snowflake where FK constraints aren't fully supported
+5. Updated to reflect current dbt model structure with new dimensions and staging models

@@ -8,7 +8,8 @@ with layouts as (
     select
         sc.layout_id,
         sc.layout_name,
-        {{ dbt_utils.generate_surrogate_key(["coalesce(sc.layout_id, sc.layout_name)"]) }} as layout_sk,
+        sc.layout_full_name,
+        {{ dbt_utils.generate_surrogate_key(["coalesce(sc.layout_id, sc.layout_full_name)"]) }} as layout_sk,
         dc.course_sk,
         case
             when sc.layout_name like '% to %'
@@ -16,6 +17,7 @@ with layouts as (
                     || ' to ' || utils.standardize_layout_name(split_part(sc.layout_name, ' to ', 2))
             else utils.standardize_layout_name(sc.layout_name)
         end as layout_type,
+        mode(sc.hole_count) as hole_count,
         sc.layout_id is null as is_custom,
         min(sc.created_at) as created_at,
         max(sc.updated_at) as updated_at
@@ -31,7 +33,9 @@ select
     l.layout_id,
     l.course_sk,
     l.layout_name,
+    l.layout_full_name,
     l.layout_type,
+    l.hole_count,
     l.is_custom,
     l.created_at,
     l.updated_at

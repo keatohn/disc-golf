@@ -106,7 +106,7 @@ final as (
                     then 'C2 Middle'
                 when throw_from_code = 'C2'
                     then 'C2 Long'
-                else throw_from_code
+                else throw_from
             end
         end as made_from,
         thr_to.created_at,

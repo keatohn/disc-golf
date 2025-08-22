@@ -11,6 +11,7 @@ select
     trim(sc.value:courseName::string) as course_name,
     sc.value:layoutId::string as layout_id,
     trim(sc.value:layoutName::string) as layout_name,
+    sc.value:courseName::string || ' - ' || trim(sc.value:layoutName::string) as layout_full_name,
 
     convert_timezone('America/Los_Angeles', 'America/New_York', sc.value:startDate.iso::timestamp_ntz) as start_date,
     convert_timezone('America/Los_Angeles', 'America/New_York', sc.value:endDate.iso::timestamp_ntz) as end_date,
@@ -29,6 +30,7 @@ select
     sc.value:weather as weather,
     sc.value:entries as entries,
     sc.value:holes as holes,
+    array_size(to_array(sc.value:holes)) as hole_count,
 
     sc.value:version::number as version,
     max(sc.value:notes::string) as notes,

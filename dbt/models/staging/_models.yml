@@ -3,12 +3,224 @@ version: 2
 models:
   - name: scorecards
     description: "Staging model that flattens the top-level scorecard JSON data"
+    columns:
+      - name: scorecard_id
+        description: "Unique identifier for the scorecard"
+        tests:
+          - unique
+          - not_null
+      - name: course_id
+        description: "Course identifier"
+      - name: layout_id
+        description: "Layout identifier"
+      - name: start_date
+        description: "When the scorecard outing started"
+      - name: end_date
+        description: "When the scorecard outing ended"
+      - name: total_players
+        description: "Number of players in the group"
+      - name: change_version
+        description: "Version of the scorecard data"
+      - name: updated_at
+        description: "When the scorecard was last updated"
 
   - name: scorecard_entries
     description: "Staging model that parses the entries array to get individual player scores per hole"
+    columns:
+      - name: scorecard_id
+        description: "Foreign key to scorecards"
+        tests:
+          - not_null
+      - name: layout_id
+        description: "Layout identifier for this scorecard"
+      - name: entry_id
+        description: "Unique identifier for the player's entry"
+        tests:
+          - unique
+          - not_null
+      - name: entry_created_at
+        description: "When the entry was created"
+      - name: entry_updated_at
+        description: "When the entry was last updated"
+      - name: include_in_handicaps
+        description: "Whether to include this round in handicap calculations"
+      - name: include_in_profile
+        description: "Whether to include this round in player profile"
+      - name: starting_score
+        description: "Starting score for the round"
+      - name: round_rating_udisc
+        description: "UDisc rating for the round"
+      - name: hole_strokes
+        description: "Number of strokes for this hole"
+      - name: hole_score_change_version
+        description: "Version of the hole score data"
+      - name: hole_throws
+        description: "Raw throws data for this hole"
+      - name: hole_number
+        description: "Hole number on the course"
+      - name: player_id
+        description: "Player identifier"
+      - name: player_full_name
+        description: "Player's full name"
+      - name: player_first_name
+        description: "Player's first name"
+      - name: player_last_name
+        description: "Player's last name"
+      - name: player_display_name
+        description: "Player's display name"
+      - name: player_username
+        description: "Player's username"
+      - name: player_is_udisc_user
+        description: "Whether this is a UDisc user"
+      - name: player_is_deleted
+        description: "Whether this player has been deleted"
+      - name: player_created_at
+        description: "When the player was created"
+      - name: player_updated_at
+        description: "When the player was last updated"
+      - name: created_by_user_id
+        description: "User who created the scorecard"
+      - name: start_date
+        description: "When the scorecard outing started"
+      - name: created_at
+        description: "When the scorecard was created"
+      - name: updated_at
+        description: "When the scorecard was last updated"
 
   - name: course_holes
     description: "Staging model that parses the holes array to get detailed course hole information"
+    columns:
+      - name: scorecard_id
+        description: "Foreign key to scorecards"
+        tests:
+          - not_null
+      - name: hole_number
+        description: "Hole number on the course"
+        tests:
+          - not_null
+      - name: par
+        description: "Par for this hole"
+      - name: distance
+        description: "Distance of this hole in feet"
+      - name: dogleg_count
+        description: "Number of doglegs on this hole"
+      - name: tee_latitude
+        description: "Tee latitude coordinate"
+      - name: tee_longitude
+        description: "Tee longitude coordinate"
+      - name: basket_latitude
+        description: "Basket latitude coordinate"
+      - name: basket_longitude
+        description: "Basket longitude coordinate"
+      - name: change_version
+        description: "Version of the hole data"
+      - name: updated_at
+        description: "When the hole was last updated"
 
   - name: throws
     description: "Staging model that parses the holeThrows array to get individual throw details"
+    columns:
+      - name: scorecard_id
+        description: "Foreign key to scorecards"
+        tests:
+          - not_null
+      - name: entry_id
+        description: "Foreign key to scorecard_entries"
+        tests:
+          - not_null
+      - name: hole_number
+        description: "Hole number"
+        tests:
+          - not_null
+      - name: throw_number
+        description: "Throw number within the hole"
+        tests:
+          - not_null
+      - name: landing_zone
+        description: "Where the disc landed (basket, circle1, circle2, etc.)"
+      - name: throw_distance
+        description: "Distance of this throw in feet"
+      - name: cumulative_hole_distance
+        description: "Cumulative distance covered on this hole"
+      - name: is_final_throw
+        description: "Whether this is the final throw on the hole"
+      - name: throw_quality
+        description: "Quality rating of this throw"
+      - name: change_version
+        description: "Version of the throw data"
+      - name: updated_at
+        description: "When the throw was last updated"
+
+  - name: canonical_hole_ids
+    description: "Staging model that creates canonical hole identifiers for consistent hole mapping"
+    columns:
+      - name: hole_sk
+        description: "Surrogate key for the hole"
+        tests:
+          - unique
+          - not_null
+      - name: canonical_hole_id
+        description: "Canonical identifier for the hole"
+        tests:
+          - unique
+          - not_null
+      - name: course_sk
+        description: "Foreign key to dim_course"
+        tests:
+          - not_null
+      - name: layout_sk
+        description: "Foreign key to dim_layout"
+        tests:
+          - not_null
+      - name: hole_number
+        description: "Hole number on the layout"
+        tests:
+          - not_null
+      - name: created_at
+        description: "When the canonical ID was created"
+      - name: updated_at
+        description: "When the canonical ID was last updated"
+
+  - name: canonical_target_ids
+    description: "Staging model that creates canonical target identifiers for consistent target mapping"
+    columns:
+      - name: target_sk
+        description: "Surrogate key for the target"
+        tests:
+          - unique
+          - not_null
+      - name: canonical_target_id
+        description: "Canonical identifier for the target"
+        tests:
+          - unique
+          - not_null
+      - name: target_type
+        description: "Type of target (basket, etc.)"
+      - name: target_name
+        description: "Name or description of the target"
+      - name: created_at
+        description: "When the canonical ID was created"
+      - name: updated_at
+        description: "When the canonical ID was last updated"
+
+  - name: canonical_tee_ids
+    description: "Staging model that creates canonical tee identifiers for consistent tee mapping"
+    columns:
+      - name: tee_sk
+        description: "Surrogate key for the tee"
+        tests:
+          - unique
+          - not_null
+      - name: canonical_tee_id
+        description: "Canonical identifier for the tee"
+        tests:
+          - unique
+          - not_null
+      - name: tee_type
+        description: "Type of tee (pro, amateur, etc.)"
+      - name: tee_name
+        description: "Name or description of the tee"
+      - name: created_at
+        description: "When the canonical ID was created"
+      - name: updated_at
+        description: "When the canonical ID was last updated"
