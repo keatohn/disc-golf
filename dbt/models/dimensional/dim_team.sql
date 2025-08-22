@@ -4,35 +4,35 @@
 
 with teams as (
     select
-        entry_id,
-        listagg(distinct player_id, '_') within group (order by player_id) as team_id,
+        se.entry_id,
+        listagg(distinct se.player_id, '_') within group (order by se.player_id) as team_id,
         {{ dbt_utils.generate_surrogate_key(["team_id"]) }} as team_sk,
-        listagg(distinct coalesce(player_first_name, player_display_name), ' + ')
-            within group (order by coalesce(player_first_name, player_display_name)) as team_name,
+        listagg(distinct coalesce(se.player_first_name, se.player_display_name), ' + ')
+            within group (order by coalesce(se.player_first_name, se.player_display_name)) as team_name,
         case
-            when count(distinct player_id) = 2 then 'Doubles'
-            when count(distinct player_id) = 3 then 'Triples'
+            when count(distinct se.player_id) = 2 then 'Doubles'
+            when count(distinct se.player_id) = 3 then 'Triples'
             else 'Team'
         end as team_type,
-        min(created_at) as created_at,
-        max(updated_at) as updated_at
+        min(se.created_at) as created_at,
+        max(se.updated_at) as updated_at
     
-    from {{ ref('scorecard_entries') }}
-    group by entry_id
-    having count(distinct player_id) > 1
-    qualify row_number() over (partition by team_sk order by min(created_at), max(updated_at) desc) = 1
+    from {{ ref('scorecard_entries') }} se
+    group by se.entry_id
+    having count(distinct se.player_id) > 1
+    qualify row_number() over (partition by team_sk order by count(distinct se.scorecard_id) desc, max(se.start_date) desc) = 1
 )
 
 select
-    team_sk,
-    team_id,
-    team_name,
-    team_type,
-    created_at,
-    updated_at
+    tm.team_sk,
+    tm.team_id,
+    tm.team_name,
+    tm.team_type,
+    tm.created_at,
+    tm.updated_at
 
-from teams
+from teams tm
 
 {% if is_incremental() %}
-  where updated_at > (select max(updated_at ) from {{ this }})
+  where tm.updated_at > (select max(updated_at ) from {{ this }})
 {% endif %}

@@ -5,26 +5,26 @@
 }}
 
 with players as (
-  select
-      {{ dbt_utils.generate_surrogate_key(["player_id"]) }} as player_sk,
-      player_id,
-      player_full_name as full_name,
-      player_first_name as first_name,
-      nullif(player_last_name, '') as last_name,
-      player_display_name as display_name,
-      player_username as username,
-      player_is_udisc_user as is_udisc_user,
-      player_is_deleted as is_deleted,
-      case
-        when is_udisc_user then null
-        else min_by(created_by_user_id, created_at)
-      end as created_by_player_id,
-      player_created_at as created_at,
-      player_updated_at as updated_at
+    select
+        {{ dbt_utils.generate_surrogate_key(["se.player_id"]) }} as player_sk,
+        se.player_id,
+        se.player_full_name as full_name,
+        se.player_first_name as first_name,
+        nullif(se.player_last_name, '') as last_name,
+        se.player_display_name as display_name,
+        se.player_username as username,
+        se.player_is_udisc_user as is_udisc_user,
+        se.player_is_deleted as is_deleted,
+        case
+          when is_udisc_user then null
+          else min_by(se.created_by_user_id, se.created_at)
+        end as created_by_player_id,
+        se.player_created_at as created_at,
+        se.player_updated_at as updated_at
 
-  from {{ ref('scorecard_entries') }}
-  group by all
-  qualify row_number() over (partition by player_sk order by player_created_at desc) = 1
+    from {{ ref('scorecard_entries') }} se
+    group by all
+    qualify row_number() over (partition by player_sk order by count(distinct se.scorecard_id) desc, max(se.start_date) desc) = 1
 )
 
 select

@@ -6,19 +6,16 @@
 
 with throws_flattened as (
     select
-        scorecard_id,
-        entry_id,
-        hole_number,
-        
-        -- Throw level data
+        se.scorecard_id,
+        se.entry_id,
+        se.hole_number,
         throw.value:landingZone::string as landing_zone,
         throw.value:distance::float as throw_distance,
         throw.index + 1 as throw_number,
-
-        created_at,
-        updated_at
+        se.created_at,
+        se.updated_at
         
-    from {{ ref('scorecard_entries') }},
+    from {{ ref('scorecard_entries') }} se,
          lateral flatten(input => hole_throws) throw
     where hole_throws is not null
     group by all

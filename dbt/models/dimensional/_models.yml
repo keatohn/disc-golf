@@ -53,15 +53,15 @@ models:
       - name: updated_at
         description: "When the layout was last updated"
 
-  - name: dim_layout_hole
-    description: "Dimension table for holes within layouts, containing static hole definitions"
+  - name: dim_hole
+    description: "Dimension table for holes on courses and layouts"
     columns:
-      - name: layout_hole_sk
-        description: "Surrogate key for the layout hole"
+      - name: hole_sk
+        description: "Surrogate key for the hole"
         tests:
           - unique
-      - name: layout_hole_id
-        description: "Unique identifier for the layout hole"
+      - name: hole_id
+        description: "Unique identifier for the hole"
         tests:
           - unique
       - name: hole_name

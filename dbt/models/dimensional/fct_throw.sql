@@ -6,17 +6,17 @@
 
 with player_or_team_id as (
     select
-        entry_id,
-        listagg(distinct player_id, '_') within group (order by player_id) as player_or_team_id
+        se.entry_id,
+        listagg(distinct se.player_id, '_') within group (order by se.player_id) as player_or_team_id
 
-    from {{ ref('scorecard_entries') }}
-    group by entry_id
+    from {{ ref('scorecard_entries') }} se
+    group by se.entry_id
 ),
 
 throw_data as (
     select
         frh.round_hole_sk,
-        lh.par as hole_par,
+        frh.hole_par,
         thr.throw_number,
         case
             when thr.landing_zone = 'teePad' then 'Tee Pad'
@@ -40,22 +40,14 @@ throw_data as (
             round(
                 utils.meters_to_feet(thr.throw_distance)
             , 0)
-        )as distance,
+        ) as distance,
         thr.created_at,
         thr.updated_at
     
     from {{ ref('throws') }} thr
-    join player_or_team_id ptid on thr.entry_id = ptid.entry_id
-    left join {{ ref('dim_player') }} dp on ptid.player_or_team_id = dp.player_id
-    left join {{ ref('dim_team') }} dt on ptid.player_or_team_id = dt.team_id
-    left join {{ ref('fct_round') }} fr_p on thr.entry_id = fr_p.round_id
-        and dp.player_sk = fr_p.player_sk
-    left join {{ ref('fct_round') }} fr_t on thr.entry_id = fr_t.round_id
-        and dt.team_sk = fr_t.team_sk
-    join {{ ref('fct_round_hole') }} frh on coalesce(fr_p.round_sk, fr_t.round_sk) = frh.round_sk
+    join {{ ref('fct_round') }} fr on thr.entry_id = fr.round_id
+    join {{ ref('fct_round_hole') }} frh on fr.round_sk = frh.round_sk
         and thr.hole_number = frh.hole_number
-    join {{ ref('dim_layout_hole') }} lh on frh.layout_hole_sk = lh.layout_hole_sk
-    
     group by all
 ),
 

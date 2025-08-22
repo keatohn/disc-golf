@@ -6,26 +6,28 @@
 
 with entries_flattened as (
     select
-        scorecard_id,
-        created_by_user_id,
-        created_at,
-        updated_at,
+        sc.scorecard_id,
+        sc.layout_id,
+        sc.created_by_user_id,
+        sc.start_date,
+        sc.created_at,
+        sc.updated_at,
         
         -- Entry level data
         entry.value:objectId::string as entry_id,
-        entry.value:createdAt::timestamp as entry_created_at,
-        entry.value:updatedAt::timestamp as entry_updated_at,
+        convert_timezone('America/Los_Angeles', 'America/New_York', entry.value:createdAt::timestamp_ntz) as entry_created_at,
+        convert_timezone('America/Los_Angeles', 'America/New_York', entry.value:updatedAt::timestamp_ntz) as entry_updated_at,
         entry.value:includeInHandicaps::boolean as include_in_handicaps,
         entry.value:includeInProfile::boolean as include_in_profile,
         entry.value:startingScore::number as starting_score,
+        entry.value:roundRating::number as round_rating_udisc,
         
         -- Raw arrays for further processing
         entry.value:players as players,
         entry.value:users as users,
-        entry.value:holeScores as hole_scores,
-        holes_updated_at
+        entry.value:holeScores as hole_scores
         
-    from {{ ref('scorecards') }},
+    from {{ ref('scorecards') }} sc,
          lateral flatten(input => entries) entry
     where entries is not null
 ),
@@ -56,8 +58,8 @@ players_flattened as (
         null as player_username,
         false as player_is_udisc_user,
         coalesce(player.value:isDeleted::boolean, false) as player_is_deleted,
-        player.value:createdAt::timestamp_ntz as player_created_at,
-        player.value:updatedAt::timestamp_ntz as player_updated_at
+        convert_timezone('America/Los_Angeles', 'America/New_York', player.value:createdAt::timestamp_ntz) as player_created_at,
+        convert_timezone('America/Los_Angeles', 'America/New_York', player.value:updatedAt::timestamp_ntz) as player_updated_at
         
     from entries_flattened ef,
          lateral flatten(input => players) player
@@ -76,8 +78,8 @@ players_flattened as (
         user.value:username::string as player_username,
         true as player_is_udisc_user,
         false as player_is_deleted,
-        user.value:createdAt::timestamp_ntz as player_created_at,
-        user.value:updatedAt::timestamp_ntz as player_updated_at
+        convert_timezone('America/Los_Angeles', 'America/New_York', user.value:createdAt::timestamp_ntz) as player_created_at,
+        convert_timezone('America/Los_Angeles', 'America/New_York', user.value:updatedAt::timestamp_ntz) as player_updated_at
         
     from entries_flattened ef,
          lateral flatten(input => users) as user
@@ -87,18 +89,19 @@ players_flattened as (
 final as (
     select
         ef.scorecard_id,
+        ef.layout_id,
         ef.entry_id,
         ef.entry_created_at,
         ef.entry_updated_at,
         ef.include_in_handicaps,
         ef.include_in_profile,
         ef.starting_score,
+        ef.round_rating_udisc,
 
         hsc.hole_strokes,
         hsc.hole_score_change_version,
         hsc.hole_throws,
         hsc.hole_number,
-        ef.holes_updated_at,
         
         pl.player_id,
         pl.player_full_name,
@@ -112,6 +115,7 @@ final as (
         pl.player_updated_at,
 
         ef.created_by_user_id,
+        ef.start_date,
         ef.created_at,
         ef.updated_at
         
