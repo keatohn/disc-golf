@@ -16,14 +16,27 @@ def upload_scorecard_data(scorecard_data: Dict[str, Any], user_name: str) -> str
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     storage_key = f"{user_name.lower()}/data_{timestamp}.json"
 
-    # Create S3 client with timeout configuration
+    # Create S3 client with explicit credentials
     config = Config(
         connect_timeout=30,  # 30 seconds to establish connection
         read_timeout=60,     # 60 seconds for read operations
         retries={'max_attempts': 3}  # Retry failed requests up to 3 times
     )
 
-    s3_client = boto3.client('s3', config=config)
+    # Get AWS credentials from environment variables
+    aws_access_key_id = os.getenv('AWS_S3_ACCESS_KEY_ID')
+    aws_secret_access_key = os.getenv('AWS_S3_SECRET_ACCESS_KEY')
+
+    if not aws_access_key_id or not aws_secret_access_key:
+        raise ValueError(
+            "AWS_S3_ACCESS_KEY_ID and AWS_S3_SECRET_ACCESS_KEY environment variables must be set")
+
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        config=config
+    )
 
     try:
         # Upload to S3 with timeout protection

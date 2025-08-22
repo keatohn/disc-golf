@@ -20,8 +20,8 @@ def get_configs():
         'stage_name': os.getenv('SNOWFLAKE_STAGE_NAME', 'udisc_scorecards'),
         'table_name': os.getenv('SNOWFLAKE_TABLE_NAME', 'raw_udisc_scorecards'),
         'bucket_name': os.getenv('AWS_S3_BUCKET'),
-        'aws_key_id': os.getenv('AWS_ACCESS_KEY_ID'),
-        'aws_secret_key': os.getenv('AWS_SECRET_ACCESS_KEY')
+        'aws_key_id': os.getenv('AWS_S3_ACCESS_KEY_ID'),
+        'aws_secret_key': os.getenv('AWS_S3_SECRET_ACCESS_KEY')
     }
 
     # Validate required fields

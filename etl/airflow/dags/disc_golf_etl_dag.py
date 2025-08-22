@@ -4,13 +4,13 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from airflow import DAG
-from airflow import PythonOperator
-from airflow import send_email
+from airflow.operators.python import PythonOperator
+from airflow.utils.email import send_email
 from lib.user_manager import get_user_manager
 from lib.create_snowflake_users import create_all_snowflake_users
 from lib.load_to_snowflake import load_to_snowflake
 from lib.upload_to_s3 import upload_all_scorecards
-from lib.fetch_scorecards import fetch_scorecards
+from lib.fetch_scorecards import fetch_all_scorecards
 
 
 # Check if email is configured
@@ -59,7 +59,7 @@ def fetch_and_upload_scorecards_task(**context):
         print("Fetching data from UDisc API")
 
         # Fetch scorecards for all configured users
-        scorecards_data = fetch_scorecards()
+        scorecards_data = fetch_all_scorecards()
 
         print(
             f"Successfully fetched scorecards from API: {list(scorecards_data.keys())}")
@@ -91,6 +91,49 @@ def load_to_snowflake_task(**context):
         raise e
 
 
+def run_dbt_models_task(**context):
+    """Run dbt models on Snowflake"""
+    try:
+        import subprocess
+        import os
+
+        # Change to dbt directory
+        dbt_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'dbt')
+        os.chdir(dbt_dir)
+
+        print(f"Running dbt models from: {dbt_dir}")
+
+        # Determine load type from ETL environment variable
+        load_type = os.getenv('LOAD_TYPE', 'incremental').lower()
+
+        # Build dbt command based on load type
+        if load_type == 'full':
+            dbt_cmd = ['dbt', 'run', '--target', 'prod', '--full-refresh']
+            print(f"🔄 Running dbt with full refresh (LOAD_TYPE={load_type})")
+        else:
+            dbt_cmd = ['dbt', 'run', '--target', 'prod']
+            print(f"📈 Running dbt incrementally (LOAD_TYPE={load_type})")
+
+        # Run dbt
+        result = subprocess.run(
+            dbt_cmd,
+            capture_output=True,
+            text=True,
+            cwd=dbt_dir
+        )
+
+        if result.returncode == 0:
+            print("dbt models run successful")
+            return f"dbt models run completed successfully ({load_type} mode)"
+        else:
+            print(f"dbt models run failed: {result.stderr}")
+            raise Exception(f"dbt models run failed: {result.stderr}")
+
+    except Exception as e:
+        print(f"Error running dbt models: {e}")
+        raise e
+
+
 def create_snowflake_users_task(**context):
     """Create Snowflake users based on configuration"""
     try:
@@ -116,8 +159,9 @@ def notify_success(**context):
 
     try:
         ti = context['ti']
-        upload_results = ti.xcom_pull(task_ids='fetch_and_upload')
+        upload_results = ti.xcom_pull(task_ids='fetch_and_upload_scorecards')
         snowflake_results = ti.xcom_pull(task_ids='load_to_snowflake')
+        dbt_results = ti.xcom_pull(task_ids='run_dbt_models')
         user_creation_results = ti.xcom_pull(task_ids='create_snowflake_users')
 
         subject = "Disc Golf ETL Pipeline - Success"
@@ -135,6 +179,7 @@ def notify_success(**context):
         <h2>Disc Golf ETL Pipeline Completed Successfully</h2>
         <p><strong>Uploaded to S3:</strong> {upload_results}</p>
         <p><strong>Loaded to Snowflake:</strong><br>{snowflake_summary}</p>
+        <p><strong>dbt Models:</strong> {dbt_results}</p>
         <p><strong>Snowflake Users Created:</strong> {user_creation_results}</p>
         <p><strong>Execution Date:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         """
@@ -185,7 +230,7 @@ def notify_failure(**context):
 
 
 # Define tasks
-fetch_and_upload_scorecards_task = PythonOperator(
+fetch_and_upload_task = PythonOperator(
     task_id='fetch_and_upload_scorecards',
     python_callable=fetch_and_upload_scorecards_task,
     dag=dag,
@@ -200,6 +245,12 @@ load_task = PythonOperator(
 create_users_task = PythonOperator(
     task_id='create_snowflake_users',
     python_callable=create_snowflake_users_task,
+    dag=dag,
+)
+
+dbt_models_task = PythonOperator(
+    task_id='run_dbt_models',
+    python_callable=run_dbt_models_task,
     dag=dag,
 )
 
@@ -219,7 +270,8 @@ email_failure = PythonOperator(
 
 # Define task dependencies
 create_users_task >> email_success
-fetch_and_upload_scorecards_task >> load_task >> email_success
-fetch_and_upload_scorecards_task >> email_failure
+fetch_and_upload_task >> load_task >> dbt_models_task >> email_success
+fetch_and_upload_task >> email_failure
 load_task >> email_failure
+dbt_models_task >> email_failure
 create_users_task >> email_failure

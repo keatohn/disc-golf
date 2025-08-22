@@ -103,10 +103,11 @@ def fetch_scorecards(user: User):
                     },
                 }),
                 "order": "updatedAt",
-                "include": "createdBy,entries,entries.users,entries.players,courses",
+                "include": "createdBy,entries,entries.users,entries.players",
                 "limit": 50,
                 "skip": skip
-            }
+            },
+            session_token=user.api_token
         )
 
         if response.ok:
@@ -148,7 +149,7 @@ def fetch_all_scorecards(user_names=None):
 
     if not users:
         print("No users to fetch scorecards for")
-        return []
+        return {}
 
     print(f"Fetching scorecards for {len(users)} users...")
 
@@ -159,16 +160,18 @@ def fetch_all_scorecards(user_names=None):
         with ThreadPoolExecutor(max_workers=len(users)) as executor:
             user_results = list(executor.map(fetch_scorecards, users))
 
-        # Combine all results
-        all_scorecards = []
-        for result in user_results:
-            all_scorecards.extend(result)
+        # Create a dictionary with user names as keys
+        scorecards_by_user = {}
+        for i, user in enumerate(users):
+            scorecards_by_user[user.name] = user_results[i]
     else:
         # Single user - sequential processing
-        all_scorecards = fetch_scorecards(users[0])
+        scorecards_by_user = {users[0].name: fetch_scorecards(users[0])}
 
-    print(f"Retrieved {len(all_scorecards)} total scorecards from API")
-    return all_scorecards
+    print(f"Retrieved scorecards for {len(scorecards_by_user)} users from API")
+    print(
+        f"Returning data structure: {type(scorecards_by_user)} with keys: {list(scorecards_by_user.keys()) if isinstance(scorecards_by_user, dict) else 'Not a dict'}")
+    return scorecards_by_user
 
 
 if __name__ == "__main__":
