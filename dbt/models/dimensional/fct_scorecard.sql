@@ -7,33 +7,32 @@ with scorecards as (
         sc.scorecard_id,
         {{ dbt_utils.generate_surrogate_key(["sc.scorecard_id"]) }} as scorecard_sk,
         dl.layout_sk,
-        convert_timezone('UTC', 'America/New_York', sc.start_date) as start_date,
-        convert_timezone('UTC', 'America/New_York', sc.end_date) as end_date,
-        datediff(minute, sc.start_date, sc.end_date) as duration_minutes,
+        timezone('America/New_York', sc.start_date) as start_date,
+        timezone('America/New_York', sc.end_date) as end_date,
+        date_diff('minute', sc.start_date, sc.end_date) as duration_minutes,
         sc.starting_hole_index + 1 as starting_hole,
         sc.custom_name as scorecard_name,
-        nullifzero(
-            round(
-                utils.meters_to_miles(sc.total_distance)
-            , 2)
-        ) as miles_travelled,
-        nullifzero(sc.step_count) as step_count,
+        case when round(utils.meters_to_miles(sc.total_distance), 2) = 0 
+            then null 
+            else round(utils.meters_to_miles(sc.total_distance), 2) 
+        end as miles_travelled,
+        case when sc.step_count = 0 then null else sc.step_count end as step_count,
         sc.floors_ascended,
         sc.floors_descended,
         round(
             utils.kelvin_to_fahrenheit(
-                sc.weather:temperature::number
+                cast(json_extract(sc.weather, '$.temperature') as double)
             )
         , 0) as temperature,
-        sc.weather:wind:direction::number as wind_direction_degrees,
+        cast(json_extract(sc.weather, '$.wind.direction') as double) as wind_direction_degrees,
         utils.bearing_degrees_to_cardinal_direction(wind_direction_degrees, 8) as wind_direction,
         round(
             utils.meters_per_second_to_miles_per_hour(
-                sc.weather:wind:speed::number
+                cast(json_extract(sc.weather, '$.wind.speed') as double)
             )
         , 0) as wind_speed,
-        sc.weather:humidity::number as humidity_percent,
-        sc.weather:cloudCoverPercent::number as cloud_cover_percent,
+        cast(json_extract(sc.weather, '$.humidity') as double) as humidity_percent,
+        cast(json_extract(sc.weather, '$.cloudCoverPercent') as double) as cloud_cover_percent,
         sc.notes,
         sc.uses_valid_smart_layout,
         sc.is_finished,

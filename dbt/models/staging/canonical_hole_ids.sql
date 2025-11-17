@@ -17,8 +17,8 @@ with course_hole_data as (
         coalesce(
             initcap(ch.target_type),
             case
-                when ch.layout_name ilike '%object%'
-                    or ch.course_name ilike '%object%'
+                when lower(ch.layout_name) like '%object%'
+                    or lower(ch.course_name) like '%object%'
                     then 'Object'
                 else 'Basket'
             end

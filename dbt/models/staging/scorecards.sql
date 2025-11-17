@@ -5,46 +5,45 @@
 }}
 
 select
-    sc.value:objectId::string as scorecard_id,
+    json_extract_string(raw_data, '$.objectId') as scorecard_id,
     
-    sc.value:courseId::string as course_id,
-    trim(sc.value:courseName::string) as course_name,
-    sc.value:layoutId::string as layout_id,
-    trim(sc.value:layoutName::string) as layout_name,
-    sc.value:courseName::string || ' - ' || trim(sc.value:layoutName::string) as layout_full_name,
+    json_extract_string(raw_data, '$.courseId') as course_id,
+    trim(json_extract_string(raw_data, '$.courseName')) as course_name,
+    json_extract_string(raw_data, '$.layoutId') as layout_id,
+    trim(json_extract_string(raw_data, '$.layoutName')) as layout_name,
+    json_extract_string(raw_data, '$.courseName') || ' - ' || trim(json_extract_string(raw_data, '$.layoutName')) as layout_full_name,
 
-    convert_timezone('America/Los_Angeles', 'America/New_York', sc.value:startDate.iso::timestamp_ntz) as start_date,
-    convert_timezone('America/Los_Angeles', 'America/New_York', sc.value:endDate.iso::timestamp_ntz) as end_date,
-    sc.value:playFormat::string as play_format,
-    sc.value:startingHoleIndex::number as starting_hole_index,
+    timezone('America/New_York', cast(json_extract_string(raw_data, '$.startDate.iso') as timestamp)) as start_date,
+    timezone('America/New_York', cast(json_extract_string(raw_data, '$.endDate.iso') as timestamp)) as end_date,
+    json_extract_string(raw_data, '$.playFormat') as play_format,
+    cast(json_extract(raw_data, '$.startingHoleIndex') as integer) as starting_hole_index,
 
-    max(sc.value:stepCount::number) as step_count,
-    max(sc.value:floorsAscended::number) as floors_ascended,
-    max(sc.value:floorsDescended::number) as floors_descended,
-    max(sc.value:distance::float) as total_distance,
+    max(cast(json_extract(raw_data, '$.stepCount') as integer)) as step_count,
+    max(cast(json_extract(raw_data, '$.floorsAscended') as integer)) as floors_ascended,
+    max(cast(json_extract(raw_data, '$.floorsDescended') as integer)) as floors_descended,
+    max(cast(json_extract(raw_data, '$.distance') as double)) as total_distance,
 
-    sc.value:difficulty::string as difficulty,
-    sc.value:customName::string as custom_name,
-    sc.value:usesValidSmartLayout::boolean as uses_valid_smart_layout,
+    json_extract_string(raw_data, '$.difficulty') as difficulty,
+    json_extract_string(raw_data, '$.customName') as custom_name,
+    cast(json_extract(raw_data, '$.usesValidSmartLayout') as boolean) as uses_valid_smart_layout,
 
-    sc.value:weather as weather,
-    sc.value:entries as entries,
-    sc.value:holes as holes,
-    array_size(to_array(sc.value:holes)) as hole_count,
+    json_extract(raw_data, '$.weather') as weather,
+    json_extract(raw_data, '$.entries') as entries,
+    json_extract(raw_data, '$.holes') as holes,
+    json_array_length(json_extract(raw_data, '$.holes')) as hole_count,
 
-    sc.value:version::number as version,
-    max(sc.value:notes::string) as notes,
-    sc.value:isFinished::boolean as is_finished,
-    sc.value:isSimpleScoring::boolean as is_simple_scoring,
-    coalesce(sc.value:isPublic::boolean, true) as is_public,
-    coalesce(sc.value:isDeleted::boolean, false) as is_deleted,
-    convert_timezone('America/Los_Angeles', 'America/New_York', sc.value:createdAt::timestamp_ntz) as created_at,
-    convert_timezone('America/Los_Angeles', 'America/New_York', sc.value:updatedAt::timestamp_ntz) as updated_at,
-    sc.value:createdBy.objectId::string as created_by_user_id,
+    cast(json_extract(raw_data, '$.version') as integer) as version,
+    max(json_extract_string(raw_data, '$.notes')) as notes,
+    cast(json_extract(raw_data, '$.isFinished') as boolean) as is_finished,
+    cast(json_extract(raw_data, '$.isSimpleScoring') as boolean) as is_simple_scoring,
+    coalesce(cast(json_extract(raw_data, '$.isPublic') as boolean), true) as is_public,
+    coalesce(cast(json_extract(raw_data, '$.isDeleted') as boolean), false) as is_deleted,
+    timezone('America/New_York', cast(json_extract_string(raw_data, '$.createdAt') as timestamp)) as created_at,
+    timezone('America/New_York', cast(json_extract_string(raw_data, '$.updatedAt') as timestamp)) as updated_at,
+    json_extract_string(raw_data, '$.createdBy.objectId') as created_by_user_id,
     min(r.loaded_at) as loaded_at
     
-from {{ source('raw_udisc_scorecards', 'raw_udisc_scorecards') }} r,
-  lateral flatten(input => raw_data) sc
+from {{ source('raw_udisc_scorecards', 'raw_udisc_scorecards') }} r
 
 group by all
 

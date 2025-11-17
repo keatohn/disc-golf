@@ -16,8 +16,8 @@ with round_holes as (
         se.hole_strokes - ch.hole_par as hole_score,
         case
             when hole_score = 0 then 'E'
-            when hole_score > 0 then '+' || to_varchar(hole_score)
-            else to_varchar(hole_score)
+            when hole_score > 0 then '+' || cast(hole_score as varchar)
+            else cast(hole_score as varchar)
         end as hole_score_display,
         case
             when hole_strokes = 1 then 'Ace'

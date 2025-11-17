@@ -12,40 +12,40 @@ select
     layout_name,
 
     -- Calculate hole number from array position (1-indexed)
-    row_number() over (partition by scorecard_id order by hole.index) as hole_number,
+    ordinality as hole_number,
 
     -- Hole level data
-    hole.value:holeId::string as hole_id,
-    hole.value:name::string as hole_name,
-    hole.value:par::number as hole_par,
-    hole.value:distance::float as hole_distance,
-    hole.value:customDistance::float as hole_distance_custom,
+    json_extract_string(hole, '$.holeId') as hole_id,
+    json_extract_string(hole, '$.name') as hole_name,
+    cast(json_extract(hole, '$.par') as integer) as hole_par,
+    cast(json_extract(hole, '$.distance') as double) as hole_distance,
+    cast(json_extract(hole, '$.customDistance') as double) as hole_distance_custom,
     
     -- Tee and basket information
-    hole.value:teePosition.teePositionId::string as tee_position_id,
-    hole.value:teePosition.status::string as tee_position_status,
+    json_extract_string(hole, '$.teePosition.teePositionId') as tee_position_id,
+    json_extract_string(hole, '$.teePosition.status') as tee_position_status,
     coalesce(
-      hole.value:teePosition.latitude::float,
-      hole.value:teePad.latitude::float)
+      cast(json_extract(hole, '$.teePosition.latitude') as double),
+      cast(json_extract(hole, '$.teePad.latitude') as double))
     as tee_latitude,
     coalesce(
-      hole.value:teePosition.longitude::float,
-      hole.value:teePad.longitude::float
+      cast(json_extract(hole, '$.teePosition.longitude') as double),
+      cast(json_extract(hole, '$.teePad.longitude') as double)
     ) as tee_longitude,
-    hole.value:teePosition.teeType.teeType::string as tee_type,
-    hole.value:targetPosition.targetPositionId::string as target_position_id,
-    hole.value:targetPosition.status::string as target_position_status,
+    json_extract_string(hole, '$.teePosition.teeType.teeType') as tee_type,
+    json_extract_string(hole, '$.targetPosition.targetPositionId') as target_position_id,
+    json_extract_string(hole, '$.targetPosition.status') as target_position_status,
     coalesce(
-      hole.value:targetPosition.latitude::float,
-      hole.value:basket.latitude::float
+      cast(json_extract(hole, '$.targetPosition.latitude') as double),
+      cast(json_extract(hole, '$.basket.latitude') as double)
     ) as target_latitude,
     coalesce(
-      hole.value:targetPosition.longitude::float,
-      hole.value:basket.longitude::float
+      cast(json_extract(hole, '$.targetPosition.longitude') as double),
+      cast(json_extract(hole, '$.basket.longitude') as double)
     ) as target_longitude,
-    hole.value:targetPosition.targetType.type::string as target_type,
-    hole.value:targetPosition.targetType.basketModel.name::string as basket_type,
-    hole.value:targetPosition.targetType.basketModel.manufacturer::string as basket_manufacturer,
+    json_extract_string(hole, '$.targetPosition.targetType.type') as target_type,
+    json_extract_string(hole, '$.targetPosition.targetType.basketModel.name') as basket_type,
+    json_extract_string(hole, '$.targetPosition.targetType.basketModel.manufacturer') as basket_manufacturer,
 
     utils.bearing_degrees_to_cardinal_direction(
       utils.coordinates_to_bearing_degrees(
@@ -56,56 +56,56 @@ select
       , 8)
     as hole_direction,
 
-    hole.value:doglegs as doglegs,
-    array_size(to_array(doglegs)) as dogleg_count,
+    json_extract(hole, '$.doglegs') as doglegs,
+    json_array_length(json_extract(hole, '$.doglegs')) as dogleg_count,
 
     md5(
         concat(
-            ifnull(course_id, 'null'),
-            ifnull(course_name, 'null'),
-            ifnull(hole_id, 'null'),
+            coalesce(course_id, 'null'),
+            coalesce(course_name, 'null'),
+            coalesce(hole_id, 'null'),
             hole_name,
-            to_varchar(hole_number),
-            to_varchar(hole_par),
-            ifnull(to_varchar(round(hole_distance, 0)), 'null'),
-            ifnull(tee_position_id, 'null'),
-            ifnull(tee_position_status, 'null'),
-            ifnull(to_varchar(tee_longitude), 'null'),
-            ifnull(to_varchar(tee_latitude), 'null'),
-            ifnull(tee_type, 'null'),
-            ifnull(target_position_id, 'null'),
-            ifnull(target_position_status, 'null'),
-            ifnull(to_varchar(target_longitude), 'null'),
-            ifnull(to_varchar(target_latitude), 'null'),
-            ifnull(target_type, 'null'),
-            ifnull(basket_type, 'null'),
-            ifnull(basket_manufacturer, 'null'),
-            ifnull(hole_direction, 'null'),
-            to_varchar(dogleg_count)
+            cast(hole_number as varchar),
+            cast(hole_par as varchar),
+            coalesce(cast(round(hole_distance, 0) as varchar), 'null'),
+            coalesce(tee_position_id, 'null'),
+            coalesce(tee_position_status, 'null'),
+            coalesce(cast(tee_longitude as varchar), 'null'),
+            coalesce(cast(tee_latitude as varchar), 'null'),
+            coalesce(tee_type, 'null'),
+            coalesce(target_position_id, 'null'),
+            coalesce(target_position_status, 'null'),
+            coalesce(cast(target_longitude as varchar), 'null'),
+            coalesce(cast(target_latitude as varchar), 'null'),
+            coalesce(target_type, 'null'),
+            coalesce(basket_type, 'null'),
+            coalesce(basket_manufacturer, 'null'),
+            coalesce(hole_direction, 'null'),
+            cast(dogleg_count as varchar)
         )
     ) as hole_version_hash,
 
     md5(
       concat(
         course_id,
-        ifnull(tee_position_id, 'null'),
-        ifnull(tee_position_status, 'null'),
-        to_varchar(tee_latitude),
-        to_varchar(tee_longitude),
-        ifnull(tee_type, 'null')
+        coalesce(tee_position_id, 'null'),
+        coalesce(tee_position_status, 'null'),
+        cast(tee_latitude as varchar),
+        cast(tee_longitude as varchar),
+        coalesce(tee_type, 'null')
       )
     ) as tee_version_hash,
 
     md5(
       concat(
         course_id,
-        ifnull(target_position_id, 'null'),
-        ifnull(target_position_status, 'null'),
-        to_varchar(target_latitude),
-        to_varchar(target_longitude),
-        ifnull(target_type, 'null'),
-        ifnull(basket_type, 'null'),
-        ifnull(basket_manufacturer, 'null')
+        coalesce(target_position_id, 'null'),
+        coalesce(target_position_status, 'null'),
+        cast(target_latitude as varchar),
+        cast(target_longitude as varchar),
+        coalesce(target_type, 'null'),
+        coalesce(basket_type, 'null'),
+        coalesce(basket_manufacturer, 'null')
       )
     ) as target_version_hash,
 
@@ -114,5 +114,5 @@ select
     updated_at
     
 from {{ ref('scorecards') }},
-      lateral flatten(input => holes) hole
+      unnest(json_extract(holes, '$')) with ordinality as t(hole, ordinality)
 where holes is not null

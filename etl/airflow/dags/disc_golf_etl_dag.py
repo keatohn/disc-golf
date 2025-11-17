@@ -7,9 +7,8 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.email import send_email
 from lib.user_manager import get_user_manager
-from lib.create_snowflake_users import create_all_snowflake_users
-from lib.load_to_snowflake import load_to_snowflake
-from lib.upload_to_s3 import upload_all_scorecards
+from lib.load_to_duckdb import load_to_duckdb
+from lib.write_to_parquet import write_all_scorecards
 from lib.fetch_scorecards import fetch_all_scorecards
 
 
@@ -44,8 +43,8 @@ dag = DAG(
 )
 
 
-def fetch_and_upload_scorecards_task(**context):
-    """Fetch scorecard data from UDisc API and upload to S3"""
+def fetch_and_write_scorecards_task(**context):
+    """Fetch scorecard data from UDisc API and write to Parquet files"""
     try:
         # Get user summary for logging
         user_manager = get_user_manager()
@@ -64,35 +63,35 @@ def fetch_and_upload_scorecards_task(**context):
         print(
             f"Successfully fetched scorecards from API: {list(scorecards_data.keys())}")
 
-        # Upload scorecards to S3
-        results = upload_all_scorecards(scorecards_data)
-        print(f"Successfully uploaded scorecards to S3: {results}")
+        # Write scorecards to Parquet files
+        results = write_all_scorecards(scorecards_data)
+        print(f"Successfully wrote scorecards to Parquet files: {results}")
 
         return results
     except Exception as e:
-        print(f"Error in fetch and upload task: {e}")
+        print(f"Error in fetch and write task: {e}")
         raise e
 
 
-def load_to_snowflake_task(**context):
-    """Load scorecard data from S3 to Snowflake"""
+def load_to_duckdb_task(**context):
+    """Load scorecard data from Parquet files to DuckDB"""
     try:
-        # Load data to Snowflake
-        result = load_to_snowflake()
+        # Load data to DuckDB
+        result = load_to_duckdb()
 
         if result:
-            print(f"Successfully loaded data to Snowflake: {result}")
+            print(f"Successfully loaded data to DuckDB: {result}")
         else:
-            print("No files found in S3 stage")
+            print("No Parquet files found")
 
         return result
     except Exception as e:
-        print(f"Error loading data to Snowflake: {e}")
+        print(f"Error loading data to DuckDB: {e}")
         raise e
 
 
 def run_dbt_models_task(**context):
-    """Run dbt models on Snowflake"""
+    """Run dbt models on DuckDB"""
     try:
         import subprocess
         import os
@@ -109,10 +108,10 @@ def run_dbt_models_task(**context):
         # Build dbt command based on load type
         if load_type == 'full':
             dbt_cmd = ['dbt', 'run', '--target', 'prod', '--full-refresh']
-            print(f"🔄 Running dbt with full refresh (LOAD_TYPE={load_type})")
+            print(f"Running dbt with full refresh (LOAD_TYPE={load_type})")
         else:
             dbt_cmd = ['dbt', 'run', '--target', 'prod']
-            print(f"📈 Running dbt incrementally (LOAD_TYPE={load_type})")
+            print(f"Running dbt incrementally (LOAD_TYPE={load_type})")
 
         # Run dbt
         result = subprocess.run(
@@ -134,23 +133,6 @@ def run_dbt_models_task(**context):
         raise e
 
 
-def create_snowflake_users_task(**context):
-    """Create Snowflake users based on configuration"""
-    try:
-        print("Creating Snowflake users...")
-        result = create_all_snowflake_users()
-
-        if result:
-            print("Successfully created all Snowflake users")
-        else:
-            print("Failed to create some Snowflake users")
-
-        return result
-    except Exception as e:
-        print(f"Error creating Snowflake users: {e}")
-        raise e
-
-
 def notify_success(**context):
     """Send success notification email"""
     if not EMAIL_ENABLED:
@@ -159,28 +141,26 @@ def notify_success(**context):
 
     try:
         ti = context['ti']
-        upload_results = ti.xcom_pull(task_ids='fetch_and_upload_scorecards')
-        snowflake_results = ti.xcom_pull(task_ids='load_to_snowflake')
+        write_results = ti.xcom_pull(task_ids='fetch_and_write_scorecards')
+        duckdb_results = ti.xcom_pull(task_ids='load_to_duckdb')
         dbt_results = ti.xcom_pull(task_ids='run_dbt_models')
-        user_creation_results = ti.xcom_pull(task_ids='create_snowflake_users')
 
         subject = "Disc Golf ETL Pipeline - Success"
 
-        # Format Snowflake results nicely
-        snowflake_summary = ""
-        if snowflake_results:
-            snowflake_summary = f"<strong>Total Records:</strong> {snowflake_results.get('total_records', 'N/A')}<br>"
-            if 'files_loaded' in snowflake_results:
-                snowflake_summary += "<strong>Files Processed:</strong><br>"
-                for file_info in snowflake_results['files_loaded']:
-                    snowflake_summary += f"• {file_info['user']}: {file_info['records']} records from {file_info['file']}<br>"
+        # Format DuckDB results nicely
+        duckdb_summary = ""
+        if duckdb_results:
+            duckdb_summary = f"<strong>Total Records:</strong> {duckdb_results.get('total_records', 'N/A')}<br>"
+            if 'files_loaded' in duckdb_results:
+                duckdb_summary += "<strong>Files Processed:</strong><br>"
+                for file_info in duckdb_results['files_loaded']:
+                    duckdb_summary += f"• {file_info['user']}: {file_info['records']} records from {file_info['file']}<br>"
 
         html_content = f"""
         <h2>Disc Golf ETL Pipeline Completed Successfully</h2>
-        <p><strong>Uploaded to S3:</strong> {upload_results}</p>
-        <p><strong>Loaded to Snowflake:</strong><br>{snowflake_summary}</p>
+        <p><strong>Parquet Files Written:</strong> {write_results}</p>
+        <p><strong>Loaded to DuckDB:</strong><br>{duckdb_summary}</p>
         <p><strong>dbt Models:</strong> {dbt_results}</p>
-        <p><strong>Snowflake Users Created:</strong> {user_creation_results}</p>
         <p><strong>Execution Date:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         """
 
@@ -230,21 +210,15 @@ def notify_failure(**context):
 
 
 # Define tasks
-fetch_and_upload_task = PythonOperator(
-    task_id='fetch_and_upload_scorecards',
-    python_callable=fetch_and_upload_scorecards_task,
+fetch_and_write_task = PythonOperator(
+    task_id='fetch_and_write_scorecards',
+    python_callable=fetch_and_write_scorecards_task,
     dag=dag,
 )
 
 load_task = PythonOperator(
-    task_id='load_to_snowflake',
-    python_callable=load_to_snowflake_task,
-    dag=dag,
-)
-
-create_users_task = PythonOperator(
-    task_id='create_snowflake_users',
-    python_callable=create_snowflake_users_task,
+    task_id='load_to_duckdb',
+    python_callable=load_to_duckdb_task,
     dag=dag,
 )
 
@@ -269,9 +243,7 @@ email_failure = PythonOperator(
 )
 
 # Define task dependencies
-create_users_task >> email_success
-fetch_and_upload_task >> load_task >> dbt_models_task >> email_success
-fetch_and_upload_task >> email_failure
+fetch_and_write_task >> load_task >> dbt_models_task >> email_success
+fetch_and_write_task >> email_failure
 load_task >> email_failure
 dbt_models_task >> email_failure
-create_users_task >> email_failure

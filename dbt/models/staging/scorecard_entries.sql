@@ -14,21 +14,21 @@ with entries_flattened as (
         sc.updated_at,
         
         -- Entry level data
-        entry.value:objectId::string as entry_id,
-        convert_timezone('America/Los_Angeles', 'America/New_York', entry.value:createdAt::timestamp_ntz) as entry_created_at,
-        convert_timezone('America/Los_Angeles', 'America/New_York', entry.value:updatedAt::timestamp_ntz) as entry_updated_at,
-        entry.value:includeInHandicaps::boolean as include_in_handicaps,
-        entry.value:includeInProfile::boolean as include_in_profile,
-        entry.value:startingScore::number as starting_score,
-        entry.value:roundRating::number as round_rating_udisc,
+        json_extract_string(entry, '$.objectId') as entry_id,
+        timezone('America/New_York', cast(json_extract_string(entry, '$.createdAt') as timestamp)) as entry_created_at,
+        timezone('America/New_York', cast(json_extract_string(entry, '$.updatedAt') as timestamp)) as entry_updated_at,
+        cast(json_extract(entry, '$.includeInHandicaps') as boolean) as include_in_handicaps,
+        cast(json_extract(entry, '$.includeInProfile') as boolean) as include_in_profile,
+        cast(json_extract(entry, '$.startingScore') as integer) as starting_score,
+        cast(json_extract(entry, '$.roundRating') as double) as round_rating_udisc,
         
         -- Raw arrays for further processing
-        entry.value:players as players,
-        entry.value:users as users,
-        entry.value:holeScores as hole_scores
+        json_extract(entry, '$.players') as players,
+        json_extract(entry, '$.users') as users,
+        json_extract(entry, '$.holeScores') as hole_scores
         
     from {{ ref('scorecards') }} sc,
-         lateral flatten(input => entries) entry
+         unnest(json_extract(sc.entries, '$')) as t(entry)
     where entries is not null
 ),
 
@@ -36,13 +36,13 @@ hole_scores_flattened as (
     select
         ef.scorecard_id,
         ef.entry_id,
-        hole_score.value:strokes::number as hole_strokes,
-        hole_score.value:changeVersion::number as hole_score_change_version,
-        hole_score.value:holeThrows as hole_throws,
-        row_number() over (partition by entry_id order by hole_score.index) as hole_number
+        cast(json_extract(hole_score, '$.strokes') as integer) as hole_strokes,
+        cast(json_extract(hole_score, '$.changeVersion') as integer) as hole_score_change_version,
+        json_extract(hole_score, '$.holeThrows') as hole_throws,
+        row_number() over (partition by entry_id order by ordinality) as hole_number
         
     from entries_flattened ef,
-         lateral flatten(input => hole_scores) hole_score
+         unnest(json_extract(ef.hole_scores, '$')) with ordinality as t(hole_score, ordinality)
     where hole_scores is not null
 ),
 
@@ -50,19 +50,19 @@ players_flattened as (
     select
         ef.scorecard_id,
         ef.entry_id,
-        player.value:objectId::string as player_id,
+        json_extract_string(player, '$.objectId') as player_id,
         null as player_full_name,
         null as player_first_name,
         null as player_last_name,
-        player.value:name::string as player_display_name,
+        json_extract_string(player, '$.name') as player_display_name,
         null as player_username,
         false as player_is_udisc_user,
-        coalesce(player.value:isDeleted::boolean, false) as player_is_deleted,
-        convert_timezone('America/Los_Angeles', 'America/New_York', player.value:createdAt::timestamp_ntz) as player_created_at,
-        convert_timezone('America/Los_Angeles', 'America/New_York', player.value:updatedAt::timestamp_ntz) as player_updated_at
+        coalesce(cast(json_extract(player, '$.isDeleted') as boolean), false) as player_is_deleted,
+        timezone('America/New_York', cast(json_extract_string(player, '$.createdAt') as timestamp)) as player_created_at,
+        timezone('America/New_York', cast(json_extract_string(player, '$.updatedAt') as timestamp)) as player_updated_at
         
     from entries_flattened ef,
-         lateral flatten(input => players) player
+         unnest(json_extract(ef.players, '$')) as t(player)
     where hole_scores is not null
 
     union all
@@ -70,19 +70,19 @@ players_flattened as (
     select
         ef.scorecard_id,
         ef.entry_id,
-        user.value:objectId::string as player_id,
-        coalesce(user.value:fullName::string, user.value:name::string) as player_full_name,
+        json_extract_string(user, '$.objectId') as player_id,
+        coalesce(json_extract_string(user, '$.fullName'), json_extract_string(user, '$.name')) as player_full_name,
         split_part(player_full_name, ' ', 1) as player_first_name,
         split_part(player_full_name, ' ', 2) as player_last_name,
-        user.value:name::string as player_display_name,
-        user.value:username::string as player_username,
+        json_extract_string(user, '$.name') as player_display_name,
+        json_extract_string(user, '$.username') as player_username,
         true as player_is_udisc_user,
         false as player_is_deleted,
-        convert_timezone('America/Los_Angeles', 'America/New_York', user.value:createdAt::timestamp_ntz) as player_created_at,
-        convert_timezone('America/Los_Angeles', 'America/New_York', user.value:updatedAt::timestamp_ntz) as player_updated_at
+        timezone('America/New_York', cast(json_extract_string(user, '$.createdAt') as timestamp)) as player_created_at,
+        timezone('America/New_York', cast(json_extract_string(user, '$.updatedAt') as timestamp)) as player_updated_at
         
     from entries_flattened ef,
-         lateral flatten(input => users) as user
+         unnest(json_extract(ef.users, '$')) as t(user)
     where hole_scores is not null
 ),
 

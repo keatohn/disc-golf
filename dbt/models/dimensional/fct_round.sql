@@ -55,8 +55,8 @@ rounds as (
       round_starting_score + (round_strokes - rp.round_par) as round_score,
       case
           when round_score = 0 then 'E'
-          when round_score > 0 then '+' || to_varchar(round_score)
-          else to_varchar(round_score)
+          when round_score > 0 then '+' || cast(round_score as varchar)
+          else cast(round_score as varchar)
       end as round_score_display,
       se.round_rating_udisc,
       se.entry_created_at as created_at,

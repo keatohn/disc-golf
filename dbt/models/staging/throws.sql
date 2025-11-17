@@ -9,14 +9,14 @@ with throws_flattened as (
         se.scorecard_id,
         se.entry_id,
         se.hole_number,
-        throw.value:landingZone::string as landing_zone,
-        throw.value:distance::float as throw_distance,
-        throw.index + 1 as throw_number,
+        json_extract_string(throw, '$.landingZone') as landing_zone,
+        cast(json_extract(throw, '$.distance') as double) as throw_distance,
+        ordinality as throw_number,
         se.created_at,
         se.updated_at
         
     from {{ ref('scorecard_entries') }} se,
-         lateral flatten(input => hole_throws) throw
+         unnest(json_extract(se.hole_throws, '$')) with ordinality as t(throw, ordinality)
     where hole_throws is not null
     group by all
 )

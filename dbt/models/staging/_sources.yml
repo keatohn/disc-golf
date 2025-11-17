@@ -1,7 +1,6 @@
 sources:
   - name: raw_udisc_scorecards
-    description: "Raw scorecard JSON data from UDisc"
-    database: "DISC_GOLF"
-    schema: "STAGING"
+    description: "Raw scorecard JSON data from UDisc stored in DuckDB"
+    schema: main
     tables:
       - name: raw_udisc_scorecards

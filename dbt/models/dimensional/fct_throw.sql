@@ -36,11 +36,10 @@ throw_data as (
             when thr.landing_zone = 'circle1' then 'C1'
             when thr.landing_zone = 'basket' then 'B'
         end as landing_spot_code,
-        nullifzero(
-            round(
-                utils.meters_to_feet(thr.throw_distance)
-            , 0)
-        ) as distance,
+        case when round(utils.meters_to_feet(thr.throw_distance), 0) = 0 
+            then null 
+            else round(utils.meters_to_feet(thr.throw_distance), 0) 
+        end as distance,
         thr.created_at,
         thr.updated_at
     

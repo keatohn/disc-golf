@@ -1,14 +1,14 @@
 # Disc Golf ETL Pipeline
 
-ETL pipeline that fetches disc golf scorecard data, uploads it to S3, and loads it into Snowflake for analysis.
+ETL pipeline that fetches disc golf scorecard data, writes it to local Parquet files, and loads it into DuckDB for analysis.
 
 ## Features
 
 - **Scorecard Data**: Automated fetching of scorecard data with concurrent processing
 - **PDGA Data**: Player ratings and tournament results
 - **User Management**: Multi-user support with secure credential management via AWS Secrets Manager
-- **S3 Storage**: Automated upload to S3 for file staging and historical storage in the cloud
-- **Snowflake Integration**: Automated loading of data into Snowflake for analysis and user management
+- **Parquet Storage**: Automated writing to local Parquet files for efficient data storage
+- **DuckDB Warehouse**: Data loading into DuckDB for fast, local transformations
 - **Email Notifications**: Success and failure notifications via email
 - **Docker Support**: Containerized deployment with Docker Compose
 - **Scheduled Execution**: Weekly automated runs via Airflow on Mondays at 6am
@@ -24,22 +24,23 @@ disc-golf-etl/
 │   └── lib/
 │       ├── __init__.py
 │       ├── api.py                  # API client
-│       ├── create_snowflake_connection.py # Flexible Snowflake connection utility
-│       ├── create_snowflake_users.py # Snowflake user management
 │       ├── fetch_scorecards.py     # Scorecard fetching with incremental and concurrent processing
-│       ├── load_to_snowflake.py    # Snowflake loading
+│       ├── load_to_duckdb.py       # DuckDB loading
 │       ├── login.py                # Login functionality
 │       ├── pdga_scraper.py         # General PDGA data scraper
 │       ├── pdga_tournament_scraper.py # Tournament-specific PDGA scraper
 │       ├── pdga_user_scraper.py    # PDGA user data fetcher
-│       ├── upload_to_s3.py         # S3 upload functionality
+│       ├── write_to_parquet.py     # Parquet file writing
 │       └── user_manager.py         # User management with AWS Secrets Manager
+├── data/                          # Local data storage (gitignored)
+│   ├── warehouse.duckdb           # DuckDB database file
+│   └── {user_name}/               # User-specific Parquet files
 ├── scripts/
 │   └── get-password.sh            # Airflow password retrieval
 ├── docker-compose.yaml            # Docker Compose configuration
 ├── requirements.txt               # Python dependencies
-├── setup.sh                      # Initial setup script
-└── README.md                     # This file
+├── setup.sh                       # Initial setup script
+└── README.md                      # This file
 ```
 
 ## Installation
@@ -89,24 +90,14 @@ disc-golf-etl/
    # Airflow UID (optional, defaults to 50000)
    AIRFLOW_UID=50000
 
-   # AWS Configuration
-   AWS_ACCESS_KEY_ID=your_access_key
-   AWS_SECRET_ACCESS_KEY=your_secret_key
-   AWS_S3_BUCKET=your_bucket_name
+   # AWS Secrets Manager Configuration
+   AWS_SECRETS_MANAGER_ACCESS_KEY_ID=your_access_key
+   AWS_SECRETS_MANAGER_SECRET_ACCESS_KEY=your_secret_key
+   AWS_SECRETS_MANAGER_NAME=udisc-users
+   AWS_DEFAULT_REGION=us-east-1
 
-     # ETL Configuration
+   # ETL Configuration
    LOAD_TYPE=full  # Options: 'full' or 'incremental'
-
-   # Snowflake Configuration
-   SNOWFLAKE_ACCOUNT=your_account
-   SNOWFLAKE_USER=your_username
-   SNOWFLAKE_PASSWORD=your_password
-   SNOWFLAKE_ROLE=your_role
-   SNOWFLAKE_DATABASE=your_database
-   SNOWFLAKE_WAREHOUSE=your_warehouse
-   SNOWFLAKE_SCHEMA=your_schema
-   SNOWFLAKE_STAGE_NAME=your_stage_name
-   SNOWFLAKE_TABLE_NAME=your_table_name
 
    # UDisc Users (JSON array)
    UDISC_USERS='[
@@ -148,12 +139,10 @@ disc-golf-etl/
 
 ### Data Flow
 
-1. **Fetch & Upload**: Scorecard data is fetched and uploaded to S3
-2. **Load**: Latest data is loaded into Snowflake for analysis
-3. **User Management**: Snowflake users are created based on configuration
+1. **Fetch & Write**: Scorecard data is fetched and written to local Parquet files
+2. **Load**: Latest Parquet files are loaded into DuckDB warehouse
+3. **Transform**: dbt models transform raw data into dimensional model
 4. **Notify**: Success/failure notifications are sent via email
-
-**Note**: User creation runs concurrently with the data pipeline for efficiency.
 
 ## User Management
 
@@ -176,3 +165,20 @@ See https://github.com/keatohn/disc-golf-user-app for more info on user credenti
 
 **Required fields**: `name` (lowercase), `display_name`, `username`
 **Optional fields**: `email`, `pdga_id`, `role` (can be "viewer" or "developer")
+
+## Deployment
+
+### For Streamlit Dashboard
+
+The `data/warehouse.duckdb` file contains all transformed data and can be deployed with a Streamlit app:
+
+1. Run the ETL pipeline to generate/update `warehouse.duckdb`
+2. Copy `warehouse.duckdb` to your Streamlit app directory
+3. Deploy your Streamlit app (Streamlit Cloud, Render, etc.)
+4. The app can read directly from the DuckDB file - no external database needed!
+
+**Benefits**:
+- Zero ongoing database costs
+- Fast query performance
+- Simple deployment (just one file)
+- Re-run pipeline and redeploy when you want fresh data

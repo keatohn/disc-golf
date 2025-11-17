@@ -8,43 +8,6 @@ import json
 import api
 from user_manager import get_user_manager, User, login_user
 from concurrent.futures import ThreadPoolExecutor
-from create_snowflake_connection import create_snowflake_connection
-
-
-def get_latest_snowflake_timestamp():
-    """Get the latest updated_at timestamp from Snowflake scorecard table"""
-
-    scorecard_table = "FCT_SCORECARD"
-    try:
-        conn = create_snowflake_connection(schema="DW")
-        if not conn:
-            print("Warning: Could not connect to Snowflake, will fetch all scorecards")
-            return None
-
-        cursor = conn.cursor()
-
-        # Query the latest updated_at timestamp from scorecard table
-        query = "SELECT MAX(updated_at) as latest_timestamp FROM {scorecard_table}"
-        cursor.execute(query)
-
-        result = cursor.fetchone()
-        if result and result[0]:
-            # Convert to ISO format with Z
-            latest_timestamp = result[0].isoformat() + 'Z'
-            print(f"Retrieved latest Snowflake timestamp: {latest_timestamp}")
-            return latest_timestamp
-        else:
-            print("No existing scorecards found in Snowflake, will fetch all scorecards")
-            return None
-
-    except Exception as e:
-        print(f"Error querying Snowflake for latest timestamp: {e}")
-        return None
-    finally:
-        if 'cursor' in locals():
-            cursor.close()
-        if 'conn' in locals():
-            conn.close()
 
 
 def fetch_scorecards(user: User):
