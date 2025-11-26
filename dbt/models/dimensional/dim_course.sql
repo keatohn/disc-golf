@@ -4,19 +4,25 @@
   )
 }}
 
-with courses as (
+with courses_grouped as (
   select
       sc.course_id,
       sc.course_name,
-      initcap(replace(sc.difficulty, '-', ' ')) as difficulty,
+      upper(substring(replace(sc.difficulty, '-', ' '), 1, 1)) || lower(substring(replace(sc.difficulty, '-', ' '), 2)) as difficulty,
       sc.course_id is null as is_custom,
       {{ dbt_utils.generate_surrogate_key(["coalesce(sc.course_id, sc.course_name)"]) }} as course_sk,
       min(sc.created_at) as created_at,
-      max(sc.updated_at) as updated_at
+      max(sc.updated_at) as updated_at,
+      count(distinct sc.scorecard_id) as scorecard_count,
+      max(sc.start_date) as latest_start_date
 
   from {{ ref('scorecards') }} sc
   group by all
-  qualify row_number() over (partition by course_sk order by count(distinct sc.scorecard_id) desc, max(sc.start_date) desc) = 1
+),
+courses as (
+  select *
+  from courses_grouped
+  qualify row_number() over (partition by course_sk order by scorecard_count desc, latest_start_date desc) = 1
 )
 
 select

@@ -12,24 +12,23 @@ with scorecards as (
         date_diff('minute', sc.start_date, sc.end_date) as duration_minutes,
         sc.starting_hole_index + 1 as starting_hole,
         sc.custom_name as scorecard_name,
-        case when round(utils.meters_to_miles(sc.total_distance), 2) = 0 
+        case when round({{ meters_to_miles('sc.total_distance') }}, 2) = 0 
             then null 
-            else round(utils.meters_to_miles(sc.total_distance), 2) 
+            else round({{ meters_to_miles('sc.total_distance') }}, 2) 
         end as miles_travelled,
         case when sc.step_count = 0 then null else sc.step_count end as step_count,
         sc.floors_ascended,
         sc.floors_descended,
         round(
-            utils.kelvin_to_fahrenheit(
-                cast(json_extract(sc.weather, '$.temperature') as double)
-            )
+            {{ kelvin_to_fahrenheit("cast(json_extract(sc.weather, '$.temperature') as double)") }}
         , 0) as temperature,
         cast(json_extract(sc.weather, '$.wind.direction') as double) as wind_direction_degrees,
-        utils.bearing_degrees_to_cardinal_direction(wind_direction_degrees, 8) as wind_direction,
+        {{ bearing_degrees_to_cardinal_direction(
+            "cast(json_extract(sc.weather, '$.wind.direction') as double)",
+            8
+        ) }} as wind_direction,
         round(
-            utils.meters_per_second_to_miles_per_hour(
-                cast(json_extract(sc.weather, '$.wind.speed') as double)
-            )
+            {{ meters_per_second_to_miles_per_hour("cast(json_extract(sc.weather, '$.wind.speed') as double)") }}
         , 0) as wind_speed,
         cast(json_extract(sc.weather, '$.humidity') as double) as humidity_percent,
         cast(json_extract(sc.weather, '$.cloudCoverPercent') as double) as cloud_cover_percent,

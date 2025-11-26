@@ -4,23 +4,29 @@
   )
 }}
 
-with targets as (
+with targets_grouped as (
     select
         ch.target_version_hash as target_sk,
         cti.canonical_target_id as target_id,
-        initcap(ch.target_position_status) as target_status,
-        initcap(ch.target_type) as target_type,
+        upper(substring(ch.target_position_status, 1, 1)) || lower(substring(ch.target_position_status, 2)) as target_status,
+        upper(substring(ch.target_type, 1, 1)) || lower(substring(ch.target_type, 2)) as target_type,
         ch.basket_type,
         ch.basket_manufacturer,
         ch.target_latitude as latitude,
         ch.target_longitude as longitude,
         min(ch.created_at) as created_at,
-        max(ch.updated_at) as updated_at
+        max(ch.updated_at) as updated_at,
+        count(distinct ch.scorecard_id) as scorecard_count,
+        max(ch.start_date) as latest_start_date
         
     from {{ ref('course_holes') }} ch
     join {{ ref('canonical_target_ids') }} cti on ch.target_version_hash = cti.target_version_hash
     group by all
-    qualify row_number() over (partition by target_sk order by count(distinct ch.scorecard_id) desc, max(ch.start_date) desc) = 1
+),
+targets as (
+    select *
+    from targets_grouped
+    qualify row_number() over (partition by target_sk order by scorecard_count desc, latest_start_date desc) = 1
 )
 
 select

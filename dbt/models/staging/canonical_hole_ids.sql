@@ -1,10 +1,10 @@
 {{
   config(
-    schema='STAGING'
+    schema='staging'
   )
 }}
 
-with course_hole_data as (
+with recursive course_hole_data_grouped as (
     select
         ch.course_id,
         ch.hole_version_hash,
@@ -15,7 +15,7 @@ with course_hole_data as (
         round(ch.hole_distance, 0) as hole_distance,
         ch.hole_direction,
         coalesce(
-            initcap(ch.target_type),
+            upper(substring(ch.target_type, 1, 1)) || lower(substring(ch.target_type, 2)),
             case
                 when lower(ch.layout_name) like '%object%'
                     or lower(ch.course_name) like '%object%'
@@ -32,20 +32,32 @@ with course_hole_data as (
         min(ch.created_at) as min_scorecard_date,
         max(ch.created_at) as max_scorecard_date,
         count(distinct ch.scorecard_id) as scorecard_cnt,
-        row_number() over (partition by ch.course_id order by
-            case when ch.hole_id is not null then 1 else 0 end desc,
-            min_scorecard_date,
-            max_scorecard_date desc,
-            case when max(ch.tee_position_status) = 'active' then 1 else 0 end desc,
-            case when max(ch.target_position_status) = 'active' then 1 else 0 end desc,
-            scorecard_cnt desc
-            ) as preference
+        max(ch.tee_position_status) as tee_position_status,
+        max(ch.target_position_status) as target_position_status
         
     from {{ ref('course_holes') }} ch
 
     group by all
-    
-    qualify row_number() over (partition by ch.hole_version_hash order by max_scorecard_date desc) = 1
+),
+
+course_hole_data_with_preference as (
+    select
+        *,
+        row_number() over (partition by course_id order by
+            case when hole_id is not null then 1 else 0 end desc,
+            min_scorecard_date,
+            max_scorecard_date desc,
+            case when tee_position_status = 'active' then 1 else 0 end desc,
+            case when target_position_status = 'active' then 1 else 0 end desc,
+            scorecard_cnt desc
+            ) as preference
+    from course_hole_data_grouped
+),
+
+course_hole_data as (
+    select *
+    from course_hole_data_with_preference
+    qualify row_number() over (partition by hole_version_hash order by max_scorecard_date desc) = 1
 ),
 
 hole_matching as (
@@ -77,29 +89,19 @@ hole_matching as (
             or (ch1.hole_direction = ch2.hole_direction and ch1.target_position_id = ch2.target_position_id)
             -- Holes share a direction and their tee coordinates within 5 meters apart
             or (ch1.hole_direction = ch2.hole_direction
-                and utils.distance_meters(ch1.tee_latitude, ch1.tee_longitude, ch2.tee_latitude, ch2.tee_longitude) <= 5)
+                and {{ distance_meters('ch1.tee_latitude', 'ch1.tee_longitude', 'ch2.tee_latitude', 'ch2.tee_longitude') }} <= 5)
             -- Holes share a direction and their target coordinates within 5 meters apart
             or (ch1.hole_direction = ch2.hole_direction
-                and utils.distance_meters(ch1.target_latitude, ch1.target_longitude, ch2.target_latitude, ch2.target_longitude) <= 5)
+                and {{ distance_meters('ch1.target_latitude', 'ch1.target_longitude', 'ch2.target_latitude', 'ch2.target_longitude') }} <= 5)
             -- Hole distance difference (meters) + Sum of squares of euclidean distance via lon-lat coordinates (meters) is within 10 meters
             --      and they do not have different tee ids and different target ids
             or (abs(ch1.hole_distance - ch2.hole_distance)
                 + sqrt(
                     power(
-                        utils.distance_meters(
-                            ch1.tee_latitude,
-                            ch1.tee_longitude,
-                            ch2.tee_latitude,
-                            ch2.tee_longitude
-                        )
+                        {{ distance_meters('ch1.tee_latitude', 'ch1.tee_longitude', 'ch2.tee_latitude', 'ch2.tee_longitude') }}
                     , 2)
                     + power(
-                        utils.distance_meters(
-                            ch1.target_latitude,
-                            ch1.target_longitude,
-                            ch2.target_latitude,
-                            ch2.target_longitude
-                        )
+                        {{ distance_meters('ch1.target_latitude', 'ch1.target_longitude', 'ch2.target_latitude', 'ch2.target_longitude') }}
                     , 2)
                 ) <= 10
                 and (ch1.tee_position_id = ch2.tee_position_id
@@ -158,5 +160,3 @@ select
     ahid.*
 
 from assign_hole_id ahid
-
-group by all

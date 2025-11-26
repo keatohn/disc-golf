@@ -7,7 +7,7 @@
 with player_or_team_id as (
     select
         se.entry_id,
-        listagg(distinct se.player_id, '_') within group (order by se.player_id) as player_or_team_id
+        string_agg(distinct se.player_id, '_' order by se.player_id) as player_or_team_id
 
     from {{ ref('scorecard_entries') }} se
     group by se.entry_id
@@ -36,9 +36,9 @@ throw_data as (
             when thr.landing_zone = 'circle1' then 'C1'
             when thr.landing_zone = 'basket' then 'B'
         end as landing_spot_code,
-        case when round(utils.meters_to_feet(thr.throw_distance), 0) = 0 
+        case when round({{ meters_to_feet('thr.throw_distance') }}, 0) = 0 
             then null 
-            else round(utils.meters_to_feet(thr.throw_distance), 0) 
+            else round({{ meters_to_feet('thr.throw_distance') }}, 0) 
         end as distance,
         thr.created_at,
         thr.updated_at
@@ -47,7 +47,6 @@ throw_data as (
     join {{ ref('fct_round') }} fr on thr.entry_id = fr.round_id
     join {{ ref('fct_round_hole') }} frh on fr.round_sk = frh.round_sk
         and thr.hole_number = frh.hole_number
-    group by all
 ),
 
 final as (

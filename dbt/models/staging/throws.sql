@@ -1,6 +1,6 @@
 {{
   config(
-    schema='STAGING'
+    schema='staging'
   )
 }}
 
@@ -16,9 +16,8 @@ with throws_flattened as (
         se.updated_at
         
     from {{ ref('scorecard_entries') }} se,
-         unnest(json_extract(se.hole_throws, '$')) with ordinality as t(throw, ordinality)
+         unnest(json_extract(se.hole_throws, '$')::json[]) with ordinality as t(throw, ordinality)
     where hole_throws is not null
-    group by all
 )
 
 select

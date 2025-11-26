@@ -4,7 +4,7 @@
   )
 }}
 
-with players as (
+with players_grouped as (
     select
         {{ dbt_utils.generate_surrogate_key(["se.player_id"]) }} as player_sk,
         se.player_id,
@@ -15,16 +15,28 @@ with players as (
         se.player_username as username,
         se.player_is_udisc_user as is_udisc_user,
         se.player_is_deleted as is_deleted,
-        case
-          when is_udisc_user then null
-          else min_by(se.created_by_user_id, se.created_at)
-        end as created_by_player_id,
+        min_by(se.created_by_user_id, se.created_at) as created_by_user_id_raw,
         se.player_created_at as created_at,
-        se.player_updated_at as updated_at
+        se.player_updated_at as updated_at,
+        count(distinct se.scorecard_id) as scorecard_count,
+        max(se.start_date) as latest_start_date
 
     from {{ ref('scorecard_entries') }} se
     group by all
-    qualify row_number() over (partition by player_sk order by count(distinct se.scorecard_id) desc, max(se.start_date) desc) = 1
+),
+players_with_created_by as (
+    select
+        *,
+        case
+          when is_udisc_user then null
+          else created_by_user_id_raw
+        end as created_by_player_id
+    from players_grouped
+),
+players as (
+    select *
+    from players_with_created_by
+    qualify row_number() over (partition by player_sk order by scorecard_count desc, latest_start_date desc) = 1
 )
 
 select

@@ -16,20 +16,17 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
-vars:
-  dbt_constraints_enabled: true
-  dbt_constraints_pk_enabled: true
-  dbt_constraints_uk_enabled: true
-  dbt_constraints_fk_enabled: true
-  dbt_constraints_nn_enabled: true
-
 models:
   disc_golf_dbt:
     staging:
       +materialized: table
+      +schema: staging
     dimensional:
-      +materialized: incremental
-      +incremental_strategy: merge
+      +materialized: table
+      +schema: dw
+    analytics:
+      +materialized: table
+      +schema: analytics
 
 on-run-end:
-  - "{{ dbt_constraints.create_constraints() }}"
+  - "{{ create_constraints() }}"

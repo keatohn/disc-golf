@@ -4,7 +4,7 @@
   )
 }}
 
-with round_holes as (
+with round_holes_grouped as (
     select
         {{ dbt_utils.generate_surrogate_key(["fr.round_sk", "ch.hole_version_hash"]) }} as round_hole_sk,
         fr.round_sk,
@@ -15,21 +15,21 @@ with round_holes as (
         ch.hole_par,
         se.hole_strokes - ch.hole_par as hole_score,
         case
-            when hole_score = 0 then 'E'
-            when hole_score > 0 then '+' || cast(hole_score as varchar)
-            else cast(hole_score as varchar)
+            when se.hole_strokes - ch.hole_par = 0 then 'E'
+            when se.hole_strokes - ch.hole_par > 0 then '+' || cast(se.hole_strokes - ch.hole_par as varchar)
+            else cast(se.hole_strokes - ch.hole_par as varchar)
         end as hole_score_display,
         case
-            when hole_strokes = 1 then 'Ace'
-            when hole_score = -4 then 'Condor'
-            when hole_score = -3 then 'Albatross'
-            when hole_score = -2 then 'Eagle'
-            when hole_score = -1 then 'Birdie'
-            when hole_score = 0 then 'Par'
-            when hole_score = 1 then 'Bogey'
-            when hole_score = 2 then 'Double Bogey'
-            when hole_score = 3 then 'Triple Bogey'
-            when hole_score = 4 then 'Quadruple Bogey+'
+            when se.hole_strokes = 1 then 'Ace'
+            when se.hole_strokes - ch.hole_par = -4 then 'Condor'
+            when se.hole_strokes - ch.hole_par = -3 then 'Albatross'
+            when se.hole_strokes - ch.hole_par = -2 then 'Eagle'
+            when se.hole_strokes - ch.hole_par = -1 then 'Birdie'
+            when se.hole_strokes - ch.hole_par = 0 then 'Par'
+            when se.hole_strokes - ch.hole_par = 1 then 'Bogey'
+            when se.hole_strokes - ch.hole_par = 2 then 'Double Bogey'
+            when se.hole_strokes - ch.hole_par = 3 then 'Triple Bogey'
+            when se.hole_strokes - ch.hole_par = 4 then 'Quadruple Bogey+'
         end as hole_result,
         se.entry_created_at as created_at,
         se.entry_updated_at as updated_at
@@ -42,7 +42,11 @@ with round_holes as (
         and ch.hole_number = se.hole_number
     where se.hole_strokes > 0
     group by all
-    qualify row_number() over (partition by round_hole_sk order by se.entry_updated_at desc) = 1
+),
+round_holes as (
+    select *
+    from round_holes_grouped
+    qualify row_number() over (partition by round_hole_sk order by updated_at desc) = 1
 ),
 
 hole_count as (

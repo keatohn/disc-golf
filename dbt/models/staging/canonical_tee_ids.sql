@@ -1,10 +1,10 @@
 {{
   config(
-    schema='STAGING'
+    schema='staging'
   )
 }}
 
-with tee_data as (
+with recursive tee_data_grouped as (
     select
         ch.course_id,
         ch.tee_version_hash,
@@ -15,23 +15,33 @@ with tee_data as (
         ch.tee_type,
         min(ch.created_at) as min_scorecard_date,
         max(ch.created_at) as max_scorecard_date,
-        count(distinct ch.scorecard_id) as scorecard_cnt,
-        row_number() over (partition by ch.course_id order by
-            case when ch.tee_position_id is not null then 1 else 0 end desc,
-            case when ch.tee_position_status = 'active' then 1 else 0 end desc,
-            case when ch.tee_type is not null then 1 else 0 end desc,
-            min_scorecard_date,
-            max_scorecard_date desc,
-            scorecard_cnt desc
-            ) as preference
+        count(distinct ch.scorecard_id) as scorecard_cnt
         
     from {{ ref('course_holes') }} ch
 
     where ch.tee_version_hash is not null
 
     group by all
+),
 
-    qualify row_number() over (partition by ch.tee_version_hash order by max_scorecard_date desc) = 1
+tee_data_with_preference as (
+    select
+        *,
+        row_number() over (partition by course_id order by
+            case when tee_position_id is not null then 1 else 0 end desc,
+            case when tee_position_status = 'active' then 1 else 0 end desc,
+            case when tee_type is not null then 1 else 0 end desc,
+            min_scorecard_date,
+            max_scorecard_date desc,
+            scorecard_cnt desc
+            ) as preference
+    from tee_data_grouped
+),
+
+tee_data as (
+    select *
+    from tee_data_with_preference
+    qualify row_number() over (partition by tee_version_hash order by max_scorecard_date desc) = 1
 ),
 
 tee_matching as (
@@ -89,5 +99,3 @@ select
     atid.*
 
 from assign_tee_id atid
-
-group by all

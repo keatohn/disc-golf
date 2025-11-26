@@ -1,6 +1,6 @@
 {{
   config(
-    schema='STAGING'
+    schema='staging'
   )
 }}
 
@@ -28,7 +28,7 @@ with entries_flattened as (
         json_extract(entry, '$.holeScores') as hole_scores
         
     from {{ ref('scorecards') }} sc,
-         unnest(json_extract(sc.entries, '$')) as t(entry)
+         unnest(json_extract(sc.entries, '$')::json[]) as t(entry)
     where entries is not null
 ),
 
@@ -42,7 +42,7 @@ hole_scores_flattened as (
         row_number() over (partition by entry_id order by ordinality) as hole_number
         
     from entries_flattened ef,
-         unnest(json_extract(ef.hole_scores, '$')) with ordinality as t(hole_score, ordinality)
+         unnest(json_extract(ef.hole_scores, '$')::json[]) with ordinality as t(hole_score, ordinality)
     where hole_scores is not null
 ),
 
@@ -62,7 +62,7 @@ players_flattened as (
         timezone('America/New_York', cast(json_extract_string(player, '$.updatedAt') as timestamp)) as player_updated_at
         
     from entries_flattened ef,
-         unnest(json_extract(ef.players, '$')) as t(player)
+         unnest(json_extract(ef.players, '$')::json[]) as t(player)
     where hole_scores is not null
 
     union all
@@ -82,7 +82,7 @@ players_flattened as (
         timezone('America/New_York', cast(json_extract_string(user, '$.updatedAt') as timestamp)) as player_updated_at
         
     from entries_flattened ef,
-         unnest(json_extract(ef.users, '$')) as t(user)
+         unnest(json_extract(ef.users, '$')::json[]) as t(user)
     where hole_scores is not null
 ),
 

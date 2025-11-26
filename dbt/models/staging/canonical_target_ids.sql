@@ -1,10 +1,10 @@
 {{
   config(
-    schema='STAGING'
+    schema='staging'
   )
 }}
 
-with target_data as (
+with recursive target_data_grouped as (
     select
         ch.course_id,
         ch.target_version_hash,
@@ -17,25 +17,35 @@ with target_data as (
         ch.basket_manufacturer,
         min(ch.created_at) as min_scorecard_date,
         max(ch.created_at) as max_scorecard_date,
-        count(distinct ch.scorecard_id) as scorecard_cnt,
-        row_number() over (partition by ch.course_id order by
-            case when ch.target_position_id is not null then 1 else 0 end desc,
-            case when ch.target_position_status = 'active' then 1 else 0 end desc,
-            case when ch.target_type is not null then 1 else 0 end desc,
-            case when ch.basket_type is not null then 1 else 0 end desc,
-            case when ch.basket_manufacturer is not null then 1 else 0 end desc,
-            min_scorecard_date,
-            max_scorecard_date desc,
-            scorecard_cnt desc
-            ) as preference
+        count(distinct ch.scorecard_id) as scorecard_cnt
         
     from {{ ref('course_holes') }} ch
 
     where ch.target_version_hash is not null
 
     group by all
+),
 
-    qualify row_number() over (partition by ch.target_version_hash order by max_scorecard_date desc) = 1
+target_data_with_preference as (
+    select
+        *,
+        row_number() over (partition by course_id order by
+            case when target_position_id is not null then 1 else 0 end desc,
+            case when target_position_status = 'active' then 1 else 0 end desc,
+            case when target_type is not null then 1 else 0 end desc,
+            case when basket_type is not null then 1 else 0 end desc,
+            case when basket_manufacturer is not null then 1 else 0 end desc,
+            min_scorecard_date,
+            max_scorecard_date desc,
+            scorecard_cnt desc
+            ) as preference
+    from target_data_grouped
+),
+
+target_data as (
+    select *
+    from target_data_with_preference
+    qualify row_number() over (partition by target_version_hash order by max_scorecard_date desc) = 1
 ),
 
 target_matching as (
@@ -93,5 +103,3 @@ select
     atid.*
 
 from assign_target_id atid
-
-group by all

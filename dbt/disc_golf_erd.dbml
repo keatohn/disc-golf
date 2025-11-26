@@ -80,7 +80,7 @@ Table dim_tee {
 }
 
 // Bridge Tables
-Table bridge_player_team {
+Table brg_player_team {
   bridge_sk varchar [pk]
   player_sk varchar [ref: > dim_player.player_sk]
   team_sk varchar [ref: > dim_team.team_sk]

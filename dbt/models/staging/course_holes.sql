@@ -1,6 +1,6 @@
 {{
   config(
-    schema='STAGING'
+    schema='staging'
   )
 }}
 
@@ -47,14 +47,15 @@ select
     json_extract_string(hole, '$.targetPosition.targetType.basketModel.name') as basket_type,
     json_extract_string(hole, '$.targetPosition.targetType.basketModel.manufacturer') as basket_manufacturer,
 
-    utils.bearing_degrees_to_cardinal_direction(
-      utils.coordinates_to_bearing_degrees(
-        tee_latitude,
-        tee_longitude,
-        target_latitude,
-        target_longitude)
-      , 8)
-    as hole_direction,
+    {{ bearing_degrees_to_cardinal_direction(
+        coordinates_to_bearing_degrees(
+            'coalesce(cast(json_extract(hole, \'$.teePosition.latitude\') as double), cast(json_extract(hole, \'$.teePad.latitude\') as double))',
+            'coalesce(cast(json_extract(hole, \'$.teePosition.longitude\') as double), cast(json_extract(hole, \'$.teePad.longitude\') as double))',
+            'coalesce(cast(json_extract(hole, \'$.targetPosition.latitude\') as double), cast(json_extract(hole, \'$.basket.latitude\') as double))',
+            'coalesce(cast(json_extract(hole, \'$.targetPosition.longitude\') as double), cast(json_extract(hole, \'$.basket.longitude\') as double))'
+        ),
+        8
+    ) }} as hole_direction,
 
     json_extract(hole, '$.doglegs') as doglegs,
     json_array_length(json_extract(hole, '$.doglegs')) as dogleg_count,
@@ -114,5 +115,5 @@ select
     updated_at
     
 from {{ ref('scorecards') }},
-      unnest(json_extract(holes, '$')) with ordinality as t(hole, ordinality)
+      unnest(json_extract(holes, '$')::json[]) with ordinality as t(hole, ordinality)
 where holes is not null

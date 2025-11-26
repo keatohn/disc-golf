@@ -263,7 +263,7 @@ Unmatched users:
 
         unmatched_users = []
         for cred in aws_credentials:
-            username = cred.get('username', '').lower()
+            username = cred.get('username', '').strip().lower()
             if username not in udisc_usernames and username not in udisc_emails:
                 unmatched_users.append(username)
 

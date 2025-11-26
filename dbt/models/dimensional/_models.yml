@@ -370,7 +370,7 @@ models:
       - name: updated_at
         description: "When the tee was last updated"
 
-  - name: bridge_player_team
+  - name: brg_player_team
     description: "Bridge table linking players to teams for team-based events"
     columns:
       - name: bridge_sk

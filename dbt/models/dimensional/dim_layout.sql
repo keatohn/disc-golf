@@ -4,7 +4,7 @@
   )
 }}
 
-with layouts as (
+with layouts_grouped as (
     select
         sc.layout_id,
         sc.layout_name,
@@ -13,19 +13,25 @@ with layouts as (
         dc.course_sk,
         case
             when sc.layout_name like '% to %'
-                then utils.standardize_layout_name(split_part(sc.layout_name, ' to ', 1))
-                    || ' to ' || utils.standardize_layout_name(split_part(sc.layout_name, ' to ', 2))
-            else utils.standardize_layout_name(sc.layout_name)
+                then {{ standardize_layout_name("split_part(sc.layout_name, ' to ', 1)") }}
+                    || ' to ' || {{ standardize_layout_name("split_part(sc.layout_name, ' to ', 2)") }}
+            else {{ standardize_layout_name('sc.layout_name') }}
         end as layout_type,
         mode(sc.hole_count) as hole_count,
         sc.layout_id is null as is_custom,
         min(sc.created_at) as created_at,
-        max(sc.updated_at) as updated_at
+        max(sc.updated_at) as updated_at,
+        count(distinct sc.scorecard_id) as scorecard_count,
+        max(sc.start_date) as latest_start_date
 
     from {{ ref('scorecards') }} sc
     join {{ ref('dim_course') }} dc on coalesce(sc.course_id, sc.course_name) = coalesce(dc.course_id, dc.course_name)
     group by all
-    qualify row_number() over (partition by layout_sk order by count(distinct sc.scorecard_id) desc, max(sc.start_date) desc) = 1
+),
+layouts as (
+    select *
+    from layouts_grouped
+    qualify row_number() over (partition by layout_sk order by scorecard_count desc, latest_start_date desc) = 1
 )
 
 select
