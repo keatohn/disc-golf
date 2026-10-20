@@ -12,7 +12,7 @@ from typing import Optional
 
 def get_duckdb_path():
     """Get the path to the DuckDB database file."""
-    # Use /opt/airflow/data which is mounted from ./data
+    # Use /opt/airflow/data which is mounted from ../data (repo root)
     db_path = Path('/opt/airflow/data') / 'warehouse.duckdb'
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return str(db_path)
@@ -20,7 +20,7 @@ def get_duckdb_path():
 
 def get_data_directory():
     """Get the path to the data directory containing Parquet files."""
-    # Use /opt/airflow/data which is mounted from ./data
+    # Use /opt/airflow/data which is mounted from ../data (repo root)
     return Path('/opt/airflow/data')
 
 

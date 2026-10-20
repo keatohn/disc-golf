@@ -10,7 +10,7 @@ def write_scorecard_data(scorecard_data: Dict[str, Any], user_name: str) -> str:
     """Write scorecard data to Parquet file."""
     # Generate storage path
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    # Use /opt/airflow/data which is mounted from ./data
+    # Use /opt/airflow/data which is mounted from ../data (repo root)
     data_dir = Path('/opt/airflow/data')
     user_dir = data_dir / user_name.lower()
     user_dir.mkdir(parents=True, exist_ok=True)

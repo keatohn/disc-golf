@@ -1,6 +1,6 @@
 # Querying the DuckDB Warehouse
 
-The DuckDB warehouse is located at `etl/data/warehouse.duckdb`. Here are several ways to query it:
+The DuckDB warehouse is located at `data/warehouse.duckdb` (repo root). Here are several ways to query it:
 
 ## Method 1: Using Python (in Docker container)
 
@@ -34,7 +34,7 @@ Then create a script:
 import duckdb
 
 # Connect to the database
-conn = duckdb.connect('etl/data/warehouse.duckdb')
+conn = duckdb.connect('data/warehouse.duckdb')
 
 # Example queries
 result = conn.execute("""
@@ -63,7 +63,7 @@ brew install duckdb
 
 Then query:
 ```bash
-duckdb etl/data/warehouse.duckdb
+duckdb data/warehouse.duckdb
 
 # In the DuckDB prompt:
 SHOW TABLES;
@@ -79,7 +79,7 @@ cd dbt
 dbt run --target prod
 
 # Then query through dbt or directly:
-duckdb ../etl/data/warehouse.duckdb
+duckdb ../data/warehouse.duckdb
 SELECT * FROM dim_player LIMIT 10;
 ```
 
@@ -161,7 +161,7 @@ LIMIT 10;
 import duckdb
 import pandas as pd
 
-conn = duckdb.connect('etl/data/warehouse.duckdb')
+conn = duckdb.connect('data/warehouse.duckdb')
 
 # Query and convert to pandas DataFrame
 df = conn.execute("""
@@ -183,7 +183,7 @@ import duckdb
 import pandas as pd
 
 # Connect
-conn = duckdb.connect('../etl/data/warehouse.duckdb')
+conn = duckdb.connect('../data/warehouse.duckdb')
 
 # Query and explore
 df = conn.execute("SELECT * FROM raw_udisc_scorecards LIMIT 100").df()

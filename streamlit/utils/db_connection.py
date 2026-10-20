@@ -14,7 +14,7 @@ def get_db_connection():
         duckdb.DuckDBPyConnection: Database connection
     """
     # Path to warehouse relative to streamlit folder
-    db_path = Path(__file__).parent.parent.parent / 'etl' / 'data' / 'warehouse.duckdb'
+    db_path = Path(__file__).parent.parent.parent / 'data' / 'warehouse.duckdb'
     
     if not db_path.exists():
         raise FileNotFoundError(

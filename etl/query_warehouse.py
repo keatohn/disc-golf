@@ -7,7 +7,7 @@ import duckdb
 from pathlib import Path
 
 # Path to the warehouse database
-db_path = Path(__file__).parent / 'data' / 'warehouse.duckdb'
+db_path = Path(__file__).parent.parent / 'data' / 'warehouse.duckdb'
 
 if not db_path.exists():
     print(f"Database not found at {db_path}")

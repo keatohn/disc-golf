@@ -32,8 +32,8 @@ disc-golf-etl/
 │       ├── pdga_user_scraper.py    # PDGA user data fetcher
 │       ├── write_to_parquet.py     # Parquet file writing
 │       └── user_manager.py         # User management with AWS Secrets Manager
-├── data/                          # Local data storage (gitignored)
-│   ├── warehouse.duckdb           # DuckDB database file
+├── ../data/                       # Data lives at repo root (outside etl/)
+│   ├── warehouse.duckdb           # DuckDB database file (gitignored: *.duckdb)
 │   └── {user_name}/               # User-specific Parquet files
 ├── scripts/
 │   └── get-password.sh            # Airflow password retrieval
@@ -170,7 +170,7 @@ See https://github.com/keatohn/disc-golf-user-app for more info on user credenti
 
 ### For Streamlit Dashboard
 
-The `data/warehouse.duckdb` file contains all transformed data and can be deployed with a Streamlit app:
+The `../data/warehouse.duckdb` file (repo root) contains all transformed data and can be deployed with a Streamlit app:
 
 1. Run the ETL pipeline to generate/update `warehouse.duckdb`
 2. Copy `warehouse.duckdb` to your Streamlit app directory

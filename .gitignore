@@ -42,6 +42,14 @@ etl/airflow/dag_processor/
 etl/airflow/scheduler/
 etl/airflow/__pycache__/
 
+# DuckDB database files
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp/
+
+# Data
+data/
+
 # Environment files
 .env
 .env.local

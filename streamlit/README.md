@@ -13,7 +13,7 @@ pip install -r requirements.txt
 
 ### 2. Ensure Database Exists
 
-The app expects the DuckDB warehouse at `etl/data/warehouse.duckdb` (relative to project root).
+The app expects the DuckDB warehouse at `data/warehouse.duckdb` (relative to project root).
 
 - If the database doesn't exist, run your ETL pipeline first
 - Run dbt models to populate analytics tables: `cd dbt && dbt run --select analytics.*`
@@ -122,7 +122,7 @@ Pages will show helpful error messages if their required models don't exist yet.
 ### Database Not Found
 
 If you see `FileNotFoundError: Database not found at...`:
-1. Check that `etl/data/warehouse.duckdb` exists
+1. Check that `data/warehouse.duckdb` exists
 2. Run the ETL pipeline to create the warehouse
 3. Verify the path in `utils/db_connection.py` is correct
 
