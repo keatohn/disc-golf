@@ -1,0 +1,8 @@
+# sqlfluff targets dbt model SQL only; the rest is excluded for bare `sqlfluff lint` runs
+.venv
+target
+logs
+dbt_packages
+dbt_internal_packages
+# macros are Jinja-only fragments, not lintable SQL
+macros

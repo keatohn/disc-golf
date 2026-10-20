@@ -1,0 +1,14 @@
+# Lints dbt model SQL. Only the repo's two SQL conventions are enforced:
+# - keywords lowercase (CP01)
+# - no subqueries in FROM/JOIN, use CTEs (ST05)
+# Everything else is deliberately left unlinted.
+[sqlfluff]
+dialect = duckdb
+templater = dbt
+rules = capitalisation.keywords, structure.subquery
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:structure.subquery]
+forbid_subquery_in = both

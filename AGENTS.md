@@ -4,16 +4,16 @@ Disc golf scorecard data pipeline + dashboard. Four independent Python projects 
 
 ## Architecture & data flow
 
-Order of operations: **ETL → dbt → Streamlit**. All three share one DuckDB file: `etl/data/warehouse.duckdb`.
+Order of operations: **ETL → dbt → Streamlit**. All three share one DuckDB file: `data/warehouse.duckdb` (repo root).
 
-- `etl/` — Airflow 3 DAG fetches UDisc scorecards → Parquet (`etl/data/<user>/`) → loads the DuckDB warehouse. Entry: `etl/airflow/dags/disc_golf_etl_dag.py` (DAG `disc_golf_etl`, Mondays 6am: fetch → load → dbt → email).
-- `dbt/` — dimensional model: source `main.raw_udisc_scorecards` (created by the ETL; **dbt fails until the warehouse exists**) → `staging` → `dimensional` (schema `dw`) → `analytics`.
+- `etl/` — Airflow 3 DAG fetches UDisc scorecards → Parquet (`data/<user>/` at repo root) → loads the DuckDB warehouse. Entry: `etl/airflow/dags/disc_golf_etl_dag.py` (DAG `disc_golf_etl`, Mondays 6am: fetch → load → dbt → email). The container reaches the data via the `../data:/opt/airflow/data` mount in `etl/docker-compose.yaml`.
+- `dbt/` — dimensional model: source `main.raw_udisc_scorecards` (created by the ETL; **dbt fails until the warehouse exists**) → `staging` → `dimensional` (schema `dw`) → `analytics`. SQL lint: `cd dbt && sqlfluff lint models` (`dbt/.sqlfluff`, dbt templater, installed in `dbt/.venv`), which enforces lowercase keywords and no FROM/JOIN subqueries. Lint must run from `dbt/` (dbt templater uses cwd as the project dir) and can't check `dbt/macros/` (Jinja-only). `analytics.*` columns are quoted identifiers with exact case (`"Player"`, `"Course Name"`) that dashboard queries depend on — lint never enforces identifier case, so never lowercase them.
 - `streamlit/` — dashboard querying `analytics.*` from the same DuckDB file. Entry: `streamlit/app.py`.
 - `user-app/` — Flask app for UDisc credentials in AWS Secrets Manager; code lives in `user-app/src/` (deployed separately to Heroku).
 
 Path contracts (run things from the right directory):
-- dbt: `profiles.yml` uses `../etl/data/warehouse.duckdb` → **always run dbt from `dbt/`**.
-- streamlit: `utils/db_connection.py` resolves `etl/data/warehouse.duckdb` from repo root.
+- dbt: `profiles.yml` uses `../data/warehouse.duckdb` → **always run dbt from `dbt/`**.
+- streamlit: `utils/db_connection.py` resolves `data/warehouse.duckdb` from repo root.
 
 ## Commands
 
@@ -26,6 +26,7 @@ dbt deps                      # required once: dbt_utils is gitignored
 dbt run                       # default target is dev
 dbt test                      # schema tests (the only "test suite" here)
 dbt run --select analytics.*  # refresh just the dashboard tables
+sqlfluff lint models          # SQL conventions (must run from dbt/)
 ./run_prod.sh                 # prod run + test; LOAD_TYPE=full → --full-refresh
 
 # dashboard
@@ -37,14 +38,14 @@ docker-compose up -d          # UI http://localhost:8080 (password: ./scripts/ge
 
 # query the warehouse
 python etl/query_warehouse.py
-duckdb etl/data/warehouse.duckdb
+duckdb data/warehouse.duckdb
 ```
 
-Verification steps: `cd dbt && dbt build`, then run the dashboard and click through. That's all the repo offers.
+Verification steps: `cd dbt && sqlfluff lint models && dbt build`, then run the dashboard and click through. That's all the repo offers.
 
 ## Gotchas
 
-- **`etl/data/warehouse.duckdb` (~140 MB) is tracked in git** (so is a parquet sample in `etl/data/keaton/`). Any ETL/dbt run shows it as modified; `.gitignore` does not cover `.duckdb`. Don't commit it casually.
+- **`data/` (repo root) is the one data dir.** `warehouse.duckdb` (~140 MB) is gitignored (`*.duckdb`), but per-user parquet files in `data/<user>/` are NOT ignored — don't commit them. `data/keaton/` is live pipeline storage: the ETL writes `data_<ts>.parquet` per user there and each load inserts only the newest file per user into `raw_udisc_scorecards`.
 - **Both dbt targets write the same schemas.** `dbt_project.yml` fixes `staging`/`dw`/`analytics` and `macros/generate_schema_name.sql` ignores `target.schema`, so `--target dev` overwrites prod tables in the same file.
 - **Single-writer DuckDB**: a running dbt/ETL job and an open Streamlit app can block each other (lock errors). Close one before running the other.
 - **The DAG's dbt step is broken in Docker**: it computes `../../dbt` from the dags folder → `/opt/dbt`, but `docker-compose.yaml` mounts dbt at `/opt/airflow/dbt`. Scheduled-run logs show `FileNotFoundError`; run dbt manually from `dbt/` to refresh `analytics.*`.

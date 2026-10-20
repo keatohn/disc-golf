@@ -72,7 +72,7 @@ with throwing_stats as (
         sum(case when thr.throw_from = 'Circle 1' and thr.throw_to = 'Basket' then 1 else 0 end) as c1_putts_made,
         sum(case when thr.throw_from = 'Circle 1' then 1 else 0 end) as c1_putts_attempted,
         sum(case when thr.throw_from = 'Circle 1' and thr.throw_to = 'Basket' and thr.made_from != 'Tap In' then 1 else 0 end) as c1x_putts_made,
-        sum(case when thr.throw_from = 'Circle 1' and (thr.made_from IS DISTINCT FROM 'Tap In') then 1 else 0 end) as c1x_putts_attempted,
+        sum(case when thr.throw_from = 'Circle 1' and (thr.made_from is distinct from 'Tap In') then 1 else 0 end) as c1x_putts_attempted,
         sum(case when thr.throw_from = 'Circle 2' and thr.throw_to = 'Basket' then 1 else 0 end) as c2_putts_made,
         sum(case when thr.throw_from = 'Circle 2' then 1 else 0 end) as c2_putts_attempted,
         max_by(thr.distance, thr.throw_number) as distance_made_from,
