@@ -45,7 +45,7 @@ Verification steps: `cd dbt && sqlfluff lint models && dbt build`, then run the 
 
 ## Gotchas
 
-- **`data/` (repo root) is the one data dir.** `warehouse.duckdb` (~140 MB) is gitignored (`*.duckdb`), but per-user parquet files in `data/<user>/` are NOT ignored — don't commit them. `data/keaton/` is live pipeline storage: the ETL writes `data_<ts>.parquet` per user there and each load inserts only the newest file per user into `raw_udisc_scorecards`.
+- **`data/` (repo root) is the one data dir and is fully gitignored** (`data/` + `*.duckdb` in `.gitignore`). It holds the ~140 MB `warehouse.duckdb` plus per-user parquet (`data/keaton/` is live pipeline storage: the ETL writes `data_<ts>.parquet` per user there and each load inserts only the newest file per user into `raw_udisc_scorecards`). Never force-add it back to git.
 - **Both dbt targets write the same schemas.** `dbt_project.yml` fixes `staging`/`dw`/`analytics` and `macros/generate_schema_name.sql` ignores `target.schema`, so `--target dev` overwrites prod tables in the same file.
 - **Single-writer DuckDB**: a running dbt/ETL job and an open Streamlit app can block each other (lock errors). Close one before running the other.
 - **The DAG's dbt step is broken in Docker**: it computes `../../dbt` from the dags folder → `/opt/dbt`, but `docker-compose.yaml` mounts dbt at `/opt/airflow/dbt`. Scheduled-run logs show `FileNotFoundError`; run dbt manually from `dbt/` to refresh `analytics.*`.
