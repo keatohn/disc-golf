@@ -3,6 +3,21 @@
 import streamlit as st
 import pandas as pd
 
+from components import render_d3
+
+# Result label -> cell color for the D3 hole heatmap (kept in sync with the
+# legend in components/charts/heatmap.js).
+HOLE_RESULT_COLORS = {
+    "Ace": "#1E90FF",
+    "Eagle": "#1E90FF",
+    "Birdie": "#87CEEB",
+    "Par": "#D3D3D3",
+    "Bogey": "#FFD700",
+    "Double Bogey": "#FFA500",
+    "Triple Bogey": "#A0522D",
+    "Quadruple Bogey+": "#2F2F2F",
+}
+
 
 def show_all_rounds(conn):
     """All Rounds - round search with filters"""
@@ -292,211 +307,105 @@ def show_all_rounds(conn):
             st.markdown("---")
             st.markdown("### Rounds")
 
-            # CSS to style the expand button
+            # D3 hole-result heatmap: one row per round, one cell per hole,
+            # color = result (replaces the st.columns + HTML badge grid).
+            hole_cols = [str(i) for i in range(1, 28)]
+            result_cols = [f"Result {i}" for i in range(1, 28)]
+            label_cols = ["Player", "Course Layout Name",
+                          "Date Formatted", "Score Display", "UDisc Rating"]
+            heat_cols = [c for c in label_cols + hole_cols + result_cols
+                         if c in df.columns]
+            heat_df = df[heat_cols]
+
+            render_d3(
+                "heatmap",
+                heat_df,
+                height=min(780, 84 + 30 * len(heat_df)),
+                config={"colors": HOLE_RESULT_COLORS},
+            )
+
+            # Per-round throwing stats (was the per-row expander button).
+            st.markdown("#### Round detail")
+
+            round_labels = [
+                f"{r.get('Player', '')} · {r.get('Course Layout Name', '')} · "
+                f"{r.get('Date Formatted', '')} · {r.get('Score Display', '')}"
+                for _, r in df.iterrows()
+            ]
+            chosen = st.selectbox(
+                "Round", round_labels, key="round_detail_select")
+            row = df.iloc[round_labels.index(chosen)]
+
+            # Calculate throwing stats percentages
+            fairway_hits = row.get('Fairway Hits', 0) or 0
+            fairway_attempts = row.get('Fairway Attempts', 0) or 0
+            fairway_pct = (fairway_hits / fairway_attempts *
+                           100) if fairway_attempts > 0 else 0
+
+            c1_made = row.get('C1 Putts Made', 0) or 0
+            c1_attempted = row.get('C1 Putts Attempted', 0) or 0
+            c1_pct = (c1_made / c1_attempted *
+                      100) if c1_attempted > 0 else 0
+
+            c1x_made = row.get('C1X Putts Made', 0) or 0
+            c1x_attempted = row.get('C1X Putts Attempted', 0) or 0
+            c1x_pct = (c1x_made / c1x_attempted *
+                       100) if c1x_attempted > 0 else 0
+
+            c2_made = row.get('C2 Putts Made', 0) or 0
+            c2_attempted = row.get('C2 Putts Attempted', 0) or 0
+            c2_pct = (c2_made / c2_attempted *
+                      100) if c2_attempted > 0 else 0
+
+            holes_played = row.get('Holes Played', 0) or 0
+            gir_c2 = row.get('GIR C2', 0) or 0
+            gir_c2_pct = (gir_c2 / holes_played *
+                          100) if holes_played > 0 else 0
+
+            gir_c1 = row.get('GIR C1', 0) or 0
+            gir_c1_pct = (gir_c1 / holes_played *
+                          100) if holes_played > 0 else 0
+
+            parked = row.get('Parked', 0) or 0
+            parked_pct = (parked / holes_played *
+                          100) if holes_played > 0 else 0
+
+            # CSS to make metric values slightly smaller
             st.markdown("""
             <style>
-            /* Make the expand button smaller and less prominent */
-            button[kind="secondary"] {
-                padding: 0.25rem 0.5rem !important;
-                font-size: 0.8rem !important;
-                min-height: 1.5rem !important;
+            div[data-testid="stMetricValue"] {
+                font-size: 1.5rem !important;
             }
             </style>
             """, unsafe_allow_html=True)
 
-            # Find max hole number across all rounds to determine header width
-            max_hole = 18
-            for idx, row in df.iterrows():
-                for i in range(27, 17, -1):
-                    hole_num = str(i)
-                    if pd.notna(row.get(hole_num)):
-                        max_hole = max(max_hole, i)
-                        break
+            # All 7 throwing stats in one compact row (reordered)
+            stat_cols = st.columns(7)
 
-            # Display column headers
-            header_cols = st.columns(
-                [2, 3.5, 1.8, 0.9, 0.9] + [0.4] * max_hole)
-            with header_cols[0]:
-                st.markdown("<strong>Player</strong>", unsafe_allow_html=True)
-            with header_cols[1]:
-                st.markdown("<strong>Course</strong>", unsafe_allow_html=True)
-            with header_cols[2]:
-                st.markdown("<strong>Date</strong>", unsafe_allow_html=True)
-            with header_cols[3]:
-                st.markdown("<strong>Score</strong>", unsafe_allow_html=True)
-            with header_cols[4]:
-                st.markdown("<strong>Rating</strong>", unsafe_allow_html=True)
-            # Hole number headers
-            for i in range(1, max_hole + 1):
-                if 5 + i - 1 < len(header_cols):
-                    with header_cols[5 + i - 1]:
-                        st.markdown(
-                            f"<div style='text-align: center; font-size: 11px;'><strong>{i}</strong></div>", unsafe_allow_html=True)
+            with stat_cols[0]:
+                st.metric("C1 Putting", f"{c1_pct:.1f}%")
+                st.caption(f"{int(c1_made)}/{int(c1_attempted)}")
+            with stat_cols[1]:
+                st.metric("C1X Putting", f"{c1x_pct:.1f}%")
+                st.caption(f"{int(c1x_made)}/{int(c1x_attempted)}")
+            with stat_cols[2]:
+                st.metric("C2 Putting", f"{c2_pct:.1f}%")
+                st.caption(f"{int(c2_made)}/{int(c2_attempted)}")
+            with stat_cols[3]:
+                st.metric("Fairway Hits", f"{fairway_pct:.1f}%")
+                st.caption(
+                    f"{int(fairway_hits)}/{int(fairway_attempts)}")
+            with stat_cols[4]:
+                st.metric("GIR C2", f"{gir_c2_pct:.1f}%")
+                st.caption(f"{int(gir_c2)}/{int(holes_played)}")
+            with stat_cols[5]:
+                st.metric("GIR C1", f"{gir_c1_pct:.1f}%")
+                st.caption(f"{int(gir_c1)}/{int(holes_played)}")
+            with stat_cols[6]:
+                st.metric("Parked", f"{parked_pct:.1f}%")
+                st.caption(f"{int(parked)}/{int(holes_played)}")
 
             st.markdown("---")
-
-            # Display rounds with color-coded holes
-            for idx, row in df.iterrows():
-                # Calculate number of holes for this round
-                round_max_hole = 18
-                for i in range(27, 17, -1):
-                    hole_num = str(i)
-                    if pd.notna(row.get(hole_num)):
-                        round_max_hole = i
-                        break
-
-                # Create expander for each round
-                round_sk = row.get('Round SK', idx)
-                expander_key = f"round_{round_sk}_{idx}"
-
-                # Calculate throwing stats percentages
-                fairway_hits = row.get('Fairway Hits', 0) or 0
-                fairway_attempts = row.get('Fairway Attempts', 0) or 0
-                fairway_pct = (fairway_hits / fairway_attempts *
-                               100) if fairway_attempts > 0 else 0
-
-                c1_made = row.get('C1 Putts Made', 0) or 0
-                c1_attempted = row.get('C1 Putts Attempted', 0) or 0
-                c1_pct = (c1_made / c1_attempted *
-                          100) if c1_attempted > 0 else 0
-
-                c1x_made = row.get('C1X Putts Made', 0) or 0
-                c1x_attempted = row.get('C1X Putts Attempted', 0) or 0
-                c1x_pct = (c1x_made / c1x_attempted *
-                           100) if c1x_attempted > 0 else 0
-
-                c2_made = row.get('C2 Putts Made', 0) or 0
-                c2_attempted = row.get('C2 Putts Attempted', 0) or 0
-                c2_pct = (c2_made / c2_attempted *
-                          100) if c2_attempted > 0 else 0
-
-                holes_played = row.get(
-                    'Holes Played', round_max_hole) or round_max_hole
-                gir_c2 = row.get('GIR C2', 0) or 0
-                gir_c2_pct = (gir_c2 / holes_played *
-                              100) if holes_played > 0 else 0
-
-                gir_c1 = row.get('GIR C1', 0) or 0
-                gir_c1_pct = (gir_c1 / holes_played *
-                              100) if holes_played > 0 else 0
-
-                parked = row.get('Parked', 0) or 0
-                parked_pct = (parked / holes_played *
-                              100) if holes_played > 0 else 0
-
-                # Create row header (always visible) with expand button
-                num_hole_cols = round_max_hole
-                cols = st.columns([2, 3.5, 1.8, 0.9, 0.9] +
-                                  [0.4] * num_hole_cols + [0.3])
-
-                with cols[0]:
-                    st.markdown(
-                        f"<div style='white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'><strong>{row['Player']}</strong></div>", unsafe_allow_html=True)
-                with cols[1]:
-                    st.markdown(
-                        f"<div style='white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{row['Course Layout Name']}</div>", unsafe_allow_html=True)
-                with cols[2]:
-                    st.markdown(
-                        f"<div style='white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{row['Date Formatted']}</div>", unsafe_allow_html=True)
-                with cols[3]:
-                    st.markdown(
-                        f"<div style='white-space: nowrap;'><strong>{row['Score Display']}</strong></div>", unsafe_allow_html=True)
-                with cols[4]:
-                    rating = row['UDisc Rating']
-                    if pd.isna(rating):
-                        rating_display = "N/A"
-                    else:
-                        rating_display = f"{rating:.0f}"
-                    st.markdown(
-                        f"<div style='white-space: nowrap;'>{rating_display}</div>", unsafe_allow_html=True)
-
-                # Display holes with color coding (only up to round_max_hole)
-                for i in range(1, round_max_hole + 1):
-                    if 5 + i - 1 >= len(cols):
-                        break
-                    hole_col = cols[5 + i - 1]
-                    hole_num = str(i)
-                    result_col = f"Result {i}"
-
-                    if pd.notna(row[hole_num]) and pd.notna(row.get(result_col)):
-                        hole_score = int(row[hole_num])
-                        hole_result = row[result_col]
-
-                        # Determine color based on result
-                        if hole_result == 'Ace':
-                            color = '#1E90FF'  # Blue
-                        elif hole_result == 'Eagle':
-                            color = '#1E90FF'  # Blue
-                        elif hole_result == 'Birdie':
-                            color = '#87CEEB'  # Light blue
-                        elif hole_result == 'Par':
-                            color = '#D3D3D3'  # Light gray
-                        elif hole_result == 'Bogey':
-                            color = '#FFD700'  # Yellow
-                        elif hole_result == 'Double Bogey':
-                            color = '#FFA500'  # Orange
-                        elif hole_result == 'Triple Bogey':
-                            color = '#A0522D'  # Brownish (sienna)
-                        elif hole_result == 'Quadruple Bogey+':
-                            color = '#2F2F2F'  # Dark gray
-                        else:
-                            color = '#CCCCCC'  # Default gray
-
-                        # Create colored circle with number (smaller, less spacing)
-                        hole_col.markdown(
-                            f'<div style="display: inline-block; width: 26px; height: 26px; '
-                            f'border-radius: 50%; background-color: {color}; color: white; '
-                            f'text-align: center; line-height: 26px; font-weight: bold; font-size: 12px; margin: 0;">{hole_score}</div>',
-                            unsafe_allow_html=True
-                        )
-                    else:
-                        hole_col.write("")
-
-                # Small expand/collapse button at the end
-                with cols[-1]:
-                    if f"expanded_{expander_key}" not in st.session_state:
-                        st.session_state[f"expanded_{expander_key}"] = False
-                    if st.button("📊", key=f"btn_{expander_key}", help="View scorecard"):
-                        st.session_state[f"expanded_{expander_key}"] = not st.session_state[f"expanded_{expander_key}"]
-
-                # Expandable scorecard section (shown/hidden based on button)
-                if st.session_state.get(f"expanded_{expander_key}", False):
-                    # CSS to make metric values slightly smaller
-                    st.markdown("""
-                    <style>
-                    div[data-testid="stMetricValue"] {
-                        font-size: 1.5rem !important;
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
-
-                    # All 7 throwing stats in one compact row (reordered)
-                    stat_cols = st.columns(7)
-
-                    with stat_cols[0]:
-                        st.metric("C1 Putting", f"{c1_pct:.1f}%")
-                        st.caption(f"{int(c1_made)}/{int(c1_attempted)}")
-                    with stat_cols[1]:
-                        st.metric("C1X Putting", f"{c1x_pct:.1f}%")
-                        st.caption(f"{int(c1x_made)}/{int(c1x_attempted)}")
-                    with stat_cols[2]:
-                        st.metric("C2 Putting", f"{c2_pct:.1f}%")
-                        st.caption(f"{int(c2_made)}/{int(c2_attempted)}")
-                    with stat_cols[3]:
-                        st.metric("Fairway Hits", f"{fairway_pct:.1f}%")
-                        st.caption(
-                            f"{int(fairway_hits)}/{int(fairway_attempts)}")
-                    with stat_cols[4]:
-                        st.metric("GIR C2", f"{gir_c2_pct:.1f}%")
-                        st.caption(f"{int(gir_c2)}/{int(holes_played)}")
-                    with stat_cols[5]:
-                        st.metric("GIR C1", f"{gir_c1_pct:.1f}%")
-                        st.caption(f"{int(gir_c1)}/{int(holes_played)}")
-                    with stat_cols[6]:
-                        st.metric("Parked", f"{parked_pct:.1f}%")
-                        st.caption(f"{int(parked)}/{int(holes_played)}")
-
-                st.markdown("---")
         else:
             st.info(
                 "No rounds found matching filters. Create `analytics.rounds` model in dbt if table doesn't exist.")
