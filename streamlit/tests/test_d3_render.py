@@ -60,6 +60,11 @@ class LoadChartTests(unittest.TestCase):
         self.assertIn("d3", js)
         self.assertIn("Score", js)
 
+    def test_loads_putting_radial(self):
+        js = _load_chart("putting_radial")
+        self.assertIn("d3", js)
+        self.assertIn("made", js)
+
     def test_rejects_path_traversal(self):
         for bad in ("../secrets", "charts/heatmap", "Heatmap", "", None):
             with self.assertRaises(ValueError):

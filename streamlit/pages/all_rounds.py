@@ -343,6 +343,37 @@ def show_all_rounds(conn):
                 },
             )
 
+            # D3 putting radial: C1/C1X/C2 make% aggregated across the
+            # filtered rounds (sums in Python, percentages in JS).
+            putt_cols = [
+                ("C1", "C1 Putts Made", "C1 Putts Attempted"),
+                ("C1X", "C1X Putts Made", "C1X Putts Attempted"),
+                ("C2", "C2 Putts Made", "C2 Putts Attempted"),
+            ]
+            putt_rows = [
+                {
+                    "zone": zone,
+                    "made": int(df[made_col].fillna(0).sum()),
+                    "attempted": int(df[att_col].fillna(0).sum()),
+                }
+                for zone, made_col, att_col in putt_cols
+                if made_col in df.columns and att_col in df.columns
+            ]
+
+            st.markdown("#### Putting radial")
+            render_d3(
+                "putting_radial",
+                putt_rows,
+                height=360,
+                config={
+                    "zoneColors": {
+                        "C1": "#22C55E",
+                        "C1X": "#4C9BE8",
+                        "C2": "#E8A14C",
+                    },
+                },
+            )
+
             # Per-round throwing stats (was the per-row expander button).
             st.markdown("#### Round detail")
 
