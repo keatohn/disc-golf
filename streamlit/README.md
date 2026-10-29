@@ -90,14 +90,15 @@ def show_my_new_page(conn):
 
 ## D3.js Charts
 
-The All Rounds hole grid is rendered with D3.js inside an iframe (design in
-`D3_PROPOSAL.md`):
+The All Rounds hole grid and score distribution are rendered with D3.js
+inside an iframe (design in `D3_PROPOSAL.md`):
 
 ```
 streamlit/components/
 ├── d3_render.py          # render_d3(chart, data, height=..., config=...)
 └── charts/
-    └── heatmap.js        # rounds x holes result grid (All Rounds page)
+    ├── heatmap.js           # rounds x holes result grid (All Rounds page)
+    └── score_histogram.js   # rounds binned by score-vs-par (All Rounds page)
 ```
 
 - **No Node build step.** D3 v7 is loaded from the jsdelivr CDN in the chart

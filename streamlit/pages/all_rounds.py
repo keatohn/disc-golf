@@ -324,6 +324,25 @@ def show_all_rounds(conn):
                 config={"colors": HOLE_RESULT_COLORS},
             )
 
+            # D3 score distribution: rounds binned by score-vs-par, colored
+            # by under/par/over with a dashed average marker.
+            score_cols = ["Score", "Score Display", "Player",
+                          "Course Layout Name", "Date Formatted"]
+            score_df = df[[c for c in score_cols if c in df.columns]].dropna(
+                subset=["Score"])
+
+            st.markdown("#### Score distribution")
+            render_d3(
+                "score_histogram",
+                score_df,
+                height=240,
+                config={
+                    "underColor": "#4C9BE8",
+                    "parColor": "#D3D3D3",
+                    "overColor": "#E8A14C",
+                },
+            )
+
             # Per-round throwing stats (was the per-row expander button).
             st.markdown("#### Round detail")
 

@@ -55,6 +55,11 @@ class LoadChartTests(unittest.TestCase):
     def test_loads_existing_chart(self):
         self.assertIn("d3", _load_chart("heatmap"))
 
+    def test_loads_score_histogram(self):
+        js = _load_chart("score_histogram")
+        self.assertIn("d3", js)
+        self.assertIn("Score", js)
+
     def test_rejects_path_traversal(self):
         for bad in ("../secrets", "charts/heatmap", "Heatmap", "", None):
             with self.assertRaises(ValueError):
@@ -64,6 +69,7 @@ class LoadChartTests(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             _load_chart("nope")
         self.assertIn("heatmap", str(ctx.exception))
+        self.assertIn("score_histogram", str(ctx.exception))
 
 
 if __name__ == "__main__":
