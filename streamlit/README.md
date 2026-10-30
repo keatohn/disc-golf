@@ -88,6 +88,43 @@ def show_my_new_page(conn):
     st.dataframe(df)
 ```
 
+## D3.js Charts
+
+The All Rounds hole grid, score distribution, and putting radial are
+rendered with D3.js inside an iframe (design in `D3_PROPOSAL.md`):
+
+```
+streamlit/components/
+├── d3_render.py          # render_d3(chart, data, height=..., config=...)
+└── charts/
+    ├── heatmap.js           # rounds x holes result grid (All Rounds page)
+    ├── score_histogram.js   # rounds binned by score-vs-par (All Rounds page)
+    └── putting_radial.js    # C1/C1X/C2 make% radial (All Rounds page)
+```
+
+- **No Node build step.** D3 v7 is loaded from the jsdelivr CDN in the chart
+  iframe; chart templates are plain JS files read at render time. For offline
+  or reproducible deployments, vendor `d3.v7.min.js` and swap the CDN URL in
+  `components/d3_render.py`.
+- **Python owns the data.** Pages run the filtered SQL and pass a DataFrame;
+  JavaScript only ever sees JSON records. All SQL, filters, and caching stay in
+  Python.
+- **Adding a chart:** create `components/charts/<name>.js`, then call
+  `render_d3("<name>", df, height=..., config=...)`. The template runs in an
+  IIFE with `target` (mount element), `payload` (`{data, config}`), and the
+  `d3` global in scope; it must clear `target` before rendering.
+
+### Tests
+
+```bash
+cd streamlit
+python -m unittest discover tests -v
+```
+
+Covers the render helper (JSON serialization/escaping, chart lookup). The chart
+templates are plain JS — verify them by running the app
+(`streamlit run app.py`) against a warehouse with `analytics.rounds`.
+
 ## Analytics Schema
 
 The dashboard queries tables from the `analytics` schema in DuckDB. Create dbt models in `dbt/models/analytics/` to populate these tables.
